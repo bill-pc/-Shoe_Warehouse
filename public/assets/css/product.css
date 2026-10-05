@@ -1,0 +1,331 @@
+/* =======================================================
+   1. ĐỒNG BỘ NỀN KÍNH CHO MODAL SẢN PHẨM / BIẾN THỂ
+======================================================== */
+/* Ép nền Modal thành kính (phòng trường hợp file topbar chưa phủ tới trang này) */
+.modal-content {
+    background: rgba(81, 81, 81, 0.418) !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    border-radius: 20px !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(15px) saturate(150%);
+    -webkit-backdrop-filter: blur(15px) saturate(150%);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+}
+
+/* =======================================================
+   2. HỦY NỀN TRẮNG CỦA BẢNG BOOTSTRAP (TABLE)
+======================================================== */
+.modal-content .table {
+    color: #ffffff !important;
+    background-color: transparent !important;
+    margin-bottom: 0;
+}
+
+/* Xóa phông nền của từng ô, thêm gạch chân trắng mờ */
+
+.modal-content .table td {
+    background-color: transparent !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+    vertical-align: middle !important;
+    /* Căn giữa nội dung theo chiều dọc */
+}
+
+.modal-content .table th {
+    background-color: rgb(38, 38, 38) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+    vertical-align: middle !important;
+
+}
+
+/* Xử lý các dòng sọc (table-striped) - Đổi từ xám thành trắng mờ 2% */
+.modal-content .table-striped>tbody>tr:nth-of-type(odd)>* {
+    background-color: rgba(255, 255, 255, 0.02) !important;
+    color: #ffffff !important;
+}
+
+/* Hiệu ứng đưa chuột qua dòng nào dòng đó sáng nhẹ lên (table-hover) */
+.modal-content .table-hover>tbody>tr:hover>* {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    transition: background-color 0.2s ease;
+}
+
+/* =======================================================
+   3. STYLE CÁC NÚT BẤM DẠNG KÍNH LỎNG (THAO TÁC)
+======================================================== */
+/* Nút dùng chung trong bảng */
+.modal-content .table .btn {
+    backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
+}
+
+/* Nút Xanh (Đang hoạt động) */
+.modal-content .table .btn-success {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+
+    /* Xanh neon */
+}
+
+.modal-content .table .btn-success:hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    color: #ffffff !important;
+}
+
+/* Nút Xám (Đã tắt) */
+.modal-content .table .btn-secondary {
+    background-color: rgba(108, 117, 125, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.modal-content .table .btn-secondary:hover {
+    background-color: rgba(108, 117, 125, 0.5) !important;
+    color: #ffffff !important;
+}
+
+/* Nút Đỏ (Xóa biến thể) */
+.modal-content .table .btn-danger {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.modal-content .table .btn-danger:hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    color: #ffffff !important;
+}
+
+/* =======================================================
+   4. TEXT PHỤ & NÚT ĐÓNG MODAL
+======================================================== */
+/* Chữ rỗng (Chưa có biến thể) */
+.modal-content .text-muted {
+    color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Nút Đóng màu đen ở dưới */
+.modal-content .modal-footer .btn-dark {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    color: #ffffff !important;
+}
+
+.modal-content .modal-footer .btn-dark:hover {
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+}
+
+
+/* Nhắm trực tiếp vào ảnh nằm trong bảng của Modal */
+.modal-content .table img {
+    width: 100% !important;
+    height: auto !important;
+    object-fit: contain !important;
+
+}
+
+/* Hiệu ứng rê chuột vào ảnh phóng to nhẹ */
+.modal-content .table img:hover {
+    transform: scale(1.1);
+    border-color: rgba(255, 255, 255, 0.5);
+    cursor: zoom-in;
+}
+
+
+/* =============================================================== */
+/* 1. HIỆU ỨNG VÀ TRẠNG THÁI CỦA Ô TRÊN SƠ ĐỒ KHO                  */
+/* =============================================================== */
+@keyframes blink-active {
+    0% {
+        box-shadow: 0 0 5px #dc3545;
+        border-color: #dc3545;
+    }
+
+    50% {
+        box-shadow: 0 0 15px #dc3545;
+        border-color: #ffcccc;
+        background-color: rgba(220, 53, 69, 0.3);
+    }
+
+    100% {
+        box-shadow: 0 0 5px #dc3545;
+        border-color: #dc3545;
+    }
+}
+
+.blinking-source {
+    animation: blink-active 1s infinite;
+    border: 2px solid #dc3545 !important;
+    cursor: pointer;
+}
+
+.selected-source {
+    border: 3px solid #ffc107 !important;
+    background-color: rgba(255, 193, 7, 0.3) !important;
+    box-shadow: 0 0 10px #ffc107;
+}
+
+.selected-dest {
+    border: 3px solid #28a745 !important;
+    background-color: rgba(40, 167, 69, 0.3) !important;
+    box-shadow: 0 0 10px #28a745;
+}
+
+/* =============================================================== */
+/* 2. CHIA SƠ ĐỒ THÀNH 2 CỘT & GIỚI HẠN CHIỀU CAO (THANH CUỘN)     */
+/* =============================================================== */
+
+/* Khung chứa map có thanh cuộn */
+.dynamic-map-container {
+    max-height: 400px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-right: 10px !important;
+}
+
+/* Trang trí thanh cuộn */
+.dynamic-map-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.dynamic-map-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 8px;
+}
+
+.dynamic-map-container::-webkit-scrollbar-thumb {
+    background: #61839D;
+    border-radius: 8px;
+}
+
+.dynamic-map-container::-webkit-scrollbar-thumb:hover {
+    background: #4a677d;
+}
+
+/* Biến flexbox cũ của Controller thành Grid 2 cột */
+.dynamic-map-container .d-flex.flex-column {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    /* Mặc định mobile 1 cột */
+    gap: 1rem !important;
+}
+
+/* Từ Tablet trở lên -> Chia 2 cột */
+@media (min-width: 768px) {
+    .dynamic-map-container .d-flex.flex-column {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+/* Reset lại width cho lưới Grid tự cân đối */
+.dynamic-map-container .d-flex.flex-column>div {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    height: 100%;
+}
+
+/* =============================================================== */
+/* 3. ĐIỀU CHỈNH FONT SIZE CHO DỄ ĐỌC                              */
+/* =============================================================== */
+
+/* Phóng to chữ T1, T2 */
+.dynamic-map-container .tier-label {
+    font-size: 18px !important;
+    font-weight: 900 !important;
+    opacity: 0.9 !important;
+    display: flex;
+    align-items: center;
+}
+
+/* Chỉnh chữ trong các ô vuông kệ */
+.dynamic-map-container .shelf-cell span {
+    font-size: 14px !important;
+    font-weight: bold;
+}
+
+.dynamic-map-container .shelf-cell {
+    min-height: 40px !important;
+}
+
+/* Hiệu ứng Highlight Dòng Biến Thể từ Sơ đồ kho chuyển qua */
+@keyframes highlight-row {
+    0% {
+        background-color: rgba(255, 193, 7, 0.5);
+    }
+
+    50% {
+        background-color: rgba(255, 193, 7, 0.1);
+    }
+
+    100% {
+        background-color: rgba(255, 193, 7, 0.5);
+    }
+}
+
+
+.highlight-variant-row td:first-child,
+.highlight-variant-row td:last-child {
+    position: relative !important;
+}
+
+/* Thanh sáng bên trái - Đưa vào trong để hết hiện thanh cuộn */
+.highlight-variant-row td:first-child::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    /* Chỉnh từ -2px về 0 */
+    top: 0;
+    width: 6px;
+    /* Tăng nhẹ độ rộng để bù cho phần blur */
+    height: 100%;
+    background: #fff;
+    filter: blur(4px);
+    z-index: 10;
+    animation: blink-vinh-vien 1.5s infinite;
+}
+
+/* Thanh sáng bên phải - Đưa vào trong */
+.highlight-variant-row td:last-child::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    /* Chỉnh từ -2px về 0 */
+    top: 0;
+    width: 10px;
+    height: 100%;
+    background: #fff;
+    filter: blur(4px);
+    z-index: 10;
+    animation: blink-vinh-vien 1.5s infinite;
+}
+
+/* Giữ cho nội dung bên trong không bị thanh sáng đè lên */
+.highlight-variant-row td:first-child {
+    padding-left: 10px !important;
+}
+
+.highlight-variant-row td:last-child {
+    padding-right: 10px !important;
+}
+
+@keyframes blink-vinh-vien {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.3;
+    }
+
+    /* Đừng để 0 hẳn, để 0.3 nhìn nó sẽ mượt hơn */
+}
+
+.brand-card.card {
+    border: 2px solid #000000 !important;
+    background: rgba(156, 156, 156, 0.15) !important; 
+}

@@ -1,0 +1,16 @@
+
+```ini
+# Database Connection
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=shoe_warehouse_ai
+DB_USER=postgres
+DB_PASSWORD=your_password_here
+
+# Pusher Credentials
+PUSHER_APP_ID=your_app_id
+PUSHER_APP_KEY=your_app_key
+PUSHER_APP_SECRET=your_app_secret
+PUSHER_APP_CLUSTER=ap1
+
+```

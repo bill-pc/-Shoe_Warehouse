@@ -1,0 +1,443 @@
+"use strict";(self.webpackChunk_N_E=self.webpackChunk_N_E||[]).push([[5518],{2065:(e,t,a)=>{a.d(t,{A:()=>s});var r=a(75479),n=a(89700),i=a(2651);let s=(0,r.v)()((0,n.lt)(e=>({isSearchIntent:!1,setIsSearchIntent:t=>e(()=>({isSearchIntent:t}),!1,"setIsSearchIntent")}),{enabled:!!window.__REDUX_DEVTOOLS_EXTENSION__&&"production"!==i.A.ENVIRONMENT,name:"SearchIntentStore"}))},15909:(e,t,a)=>{a.d(t,{A:()=>n});let r=new Set(["AF","AX","AL","DZ","AS","AD","AO","AI","AQ","AG","AR","AM","AW","AU","AT","AZ","BS","BH","BD","BB","BY","BE","BZ","BJ","BM","BT","BO","BQ","BA","BW","BV","BR","IO","BN","BG","BF","BI","CV","KH","CM","CA","KY","CF","TD","CL","CN","CX","CC","CO","KM","CG","CD","CK","CR","CI","HR","CU","CW","CY","CZ","DK","DJ","DM","DO","EC","EG","SV","GQ","ER","EE","ET","FK","FO","FJ","FI","FR","GF","PF","TF","GA","GM","GE","DE","GH","GI","GR","GL","GD","GP","GU","GT","GG","GN","GW","GY","HT","HM","VA","HN","HK","HU","IS","IN","ID","IR","IQ","IE","IM","IL","IT","JM","JP","JE","JO","KZ","KE","KI","KP","KR","KW","KG","LA","LV","LB","LS","LR","LY","LI","LT","LU","MO","MK","MG","MW","MY","MV","ML","MT","MH","MQ","MR","MU","YT","MX","FM","MD","MC","MN","ME","MS","MA","MZ","MM","NA","NR","NP","NL","NC","NZ","NI","NE","NG","NU","NF","MP","NO","OM","PK","PW","PS","PA","PG","PY","PE","PH","PN","PL","PT","PR","QA","RE","RO","RU","RW","BL","SH","KN","LC","MF","PM","VC","WS","SM","ST","SA","SN","RS","SC","SL","SG","SX","SK","SI","SB","SO","ZA","GS","SS","ES","LK","SD","SR","SJ","SZ","SE","CH","SY","TW","TJ","TZ","TH","TL","TG","TK","TO","TT","TN","TR","TM","TC","TV","UG","UA","AE","GB","US","UM","UY","UZ","VU","VE","VN","VG","VI","WF","EH","YE","ZM","ZW"]),n=e=>r.has(e)},25083:(e,t,a)=>{a.d(t,{A:()=>i});var r=a(294),n=a(79107);let i=()=>{let e=(0,n.A)(),{region:t}=(0,r.A)();return e?.marketCountry||t||"US"}},38207:(e,t,a)=>{a.d(t,{EP:()=>d,GH:()=>m,RL:()=>l,RS:()=>n,Tw:()=>o,X5:()=>s,Yw:()=>c,bO:()=>i,w3:()=>u});var r=a(89106);let n=(0,r.JU)({key:"giftcard_navItem_new_label_web",description:"Enable new label for gift card navigation item",permanent:!1}),i=(0,r.Ey)({key:"ab_mystery_boxes_v1_web",description:"Mystery Boxes MVP",permanent:!1}),s=(0,r.Ey)({key:"ab_t22y8_web",description:"Flex Ads carousel on browse pages",permanent:!1}),o=(0,r.Jt)({key:"mystery_box_supported_countries_and_currencies_all",description:"Mystery Box Supported Countries and Currencies",permanent:!0,defaultValue:{SUPPORTED_COUNTRY:["US"],SUPPORTED_CURRENCY:["USD"],US:["USD"],USD:["US"]}}),l=(0,r.JU)({key:"enable_seller_kyb_verification_feature_all",description:"Enable seller KYB verification feature",permanent:!0}),d=(0,r.JU)({key:"live_enable_stockx_all",description:"Enable StockX Live",permanent:!1}),u=(0,r.JU)({key:"live_enable_uat_web",description:"Enable Live UAT-ready features",permanent:!1}),c=(0,r.Jt)({key:"ab_omgv8_web",description:"Checkout overbid warning: variant shows modal, control auto-switches to buy",permanent:!1,defaultValue:"false",values:["false","true","neither"]}),m=(0,r.Ey)({key:"ab_fopua_web",description:"mWeb search & browse in-feed Google display ads after every 5th product grid row",permanent:!1})},38996:(e,t,a)=>{a.d(t,{h:()=>i});var r=a(2091),n=a(38207);let i=()=>"true"===(0,r.t3)(n.bO)},61301:(e,t,a)=>{a.d(t,{wF:()=>i}),a(27861);var r=a(7660);let n={query:`fragment FiltersFragment on BrowseFilter {
+  id
+  name
+  type
+  ... on BrowseFilterTree {
+    isCollapsed
+    multiSelectEnabled
+    options {
+      id
+      name
+      count
+      selected
+      children
+      level
+      value
+    }
+  }
+  ... on BrowseFilterList {
+    isCollapsed
+    multiSelectEnabled
+    listFilterStyle: style
+    options {
+      id
+      name
+      count
+      selected
+      value
+    }
+  }
+  ... on BrowseFilterBoolean {
+    id
+    name
+    type
+    selected
+    booleanFilterStyle: style
+  }
+  ... on BrowseFilterRange {
+    id
+    isCollapsed
+    name
+    type
+    minimum {
+      value
+    }
+    maximum {
+      value
+    }
+    minSelected {
+      value
+    }
+    maxSelected {
+      value
+    }
+  }
+  ... on BrowseFilterColor {
+    id
+    isCollapsed
+    name
+    type
+    options {
+      name
+      value
+      count
+      selected
+      swatchColor
+      borderColor
+    }
+  }
+}
+
+fragment DiscoveryProductFragment on Product {
+  id
+  title
+  name
+  urlKey
+  brand
+  gender
+  description
+  model
+  condition
+  productCategory
+  browseVerticals
+  listingType
+  primaryCategory
+  uuid
+  categories {
+    default {
+      alias
+      level
+    }
+  }
+  favorite
+  variants {
+    id
+  }
+  media {
+    thumbUrl
+    smallImageUrl
+  }
+  traits(filterTypes: [RELEASE_DATE]) {
+    name
+    value
+  }
+  market(currencyCode: $currency) {
+    state(country: $country, market: $market) {
+      highestBid {
+        amount
+        updatedAt
+      }
+      lowestAsk {
+        amount
+        updatedAt
+      }
+      askServiceLevels {
+        expressExpedited {
+          count
+          lowest {
+            amount
+            inventoryType
+          }
+        }
+        expressStandard {
+          count
+          lowest {
+            amount
+            inventoryType
+          }
+        }
+      }
+    }
+    statistics(market: $market) {
+      annual {
+        averagePrice
+        volatility
+        salesCount
+        pricePremium
+      }
+      last72Hours {
+        salesCount
+      }
+      last90Days {
+        averagePrice
+        salesCount
+      }
+      lastSale {
+        amount
+      }
+    }
+  }
+}
+
+fragment DiscoveryMysteryBoxFragment on MysteryBox {
+  id
+  name
+  description
+  availableUnits
+  state
+  amountUsd
+  amountLocal
+  currencyLocal
+  priceDetails {
+    currency
+    amount
+    meta {
+      floor
+      ceiling
+      average
+    }
+  }
+  product {
+    id
+    title
+    name
+    urlKey
+    brand
+    gender
+    description
+    model
+    condition
+    productCategory
+    browseVerticals
+    listingType
+    primaryCategory
+    uuid
+    categories {
+      default {
+        alias
+        level
+      }
+    }
+    favorite
+    variants {
+      id
+    }
+    media {
+      thumbUrl
+      smallImageUrl
+    }
+    traits(filterTypes: [RELEASE_DATE]) {
+      name
+      value
+    }
+  }
+  tiers {
+    tierLevel
+    id
+  }
+}
+
+query getDiscoveryData($country: String!, $currency: CurrencyCode, $filters: [BrowseFilterInput], $flow: BrowseFlow, $market: String, $query: String, $sort: BrowseSortInput, $page: BrowsePageInput, $unifiedDiscoveryEnabled: Boolean, $enableMysteryBox: Boolean = false) {
+  browse(
+    filters: $filters
+    flow: $flow
+    sort: $sort
+    page: $page
+    market: $market
+    query: $query
+    experiments: {ads: {enabled: true}, dynamicFilter: {enabled: true}, dynamicFilterDefinitions: {enabled: true}, multiselect: {enabled: true}, openSearch: {enabled: $unifiedDiscoveryEnabled}, unifiedDiscovery: {enabled: $unifiedDiscoveryEnabled}}
+  ) {
+    filtersConfig {
+      quick {
+        ...FiltersFragment
+      }
+      advanced {
+        ...FiltersFragment
+      }
+    }
+    results {
+      edges {
+        isAd
+        adIdentifier
+        adServiceLevel
+        adInventoryId
+        objectId
+        node {
+          __typename
+          ... on Variant {
+            id
+            favorite
+            market(currencyCode: $currency) {
+              state(country: $country, market: $market) {
+                highestBid {
+                  amount
+                  updatedAt
+                }
+                lowestAsk {
+                  amount
+                  updatedAt
+                }
+                askServiceLevels {
+                  expressExpedited {
+                    count
+                    lowest {
+                      amount
+                      inventoryType
+                    }
+                  }
+                  expressStandard {
+                    count
+                    lowest {
+                      amount
+                      inventoryType
+                    }
+                  }
+                }
+              }
+              statistics(market: $market) {
+                annual {
+                  averagePrice
+                  volatility
+                  salesCount
+                  pricePremium
+                }
+                last72Hours {
+                  salesCount
+                }
+                last90Days {
+                  averagePrice
+                  salesCount
+                }
+                lastSale {
+                  amount
+                }
+              }
+            }
+            product {
+              id
+              name
+              urlKey
+              title
+              brand
+              gender
+              description
+              model
+              condition
+              productCategory
+              browseVerticals
+              listingType
+              media {
+                thumbUrl
+                smallImageUrl
+              }
+              traits(filterTypes: [RELEASE_DATE]) {
+                name
+                value
+              }
+            }
+            sizeChart {
+              baseSize
+              baseType
+              displayOptions {
+                size
+                type
+              }
+            }
+          }
+          ... on Product {
+            ...DiscoveryProductFragment
+          }
+          ... on SellerListing {
+            id
+            productVariant {
+              sizeChart {
+                baseType
+                baseSize
+              }
+              product {
+                title
+                urlKey
+              }
+              traits {
+                size
+              }
+            }
+            amount
+            market {
+              state {
+                askServiceLevels {
+                  standard {
+                    lowest {
+                      amount
+                    }
+                  }
+                }
+              }
+            }
+            media {
+              images {
+                alt
+                url
+              }
+            }
+            conditionDetails: condition {
+              alias
+              value
+            }
+            isOwner
+          }
+          ... on MysteryBox @include(if: $enableMysteryBox) {
+            ...DiscoveryMysteryBoxFragment
+          }
+          ... on BrowseListingGroup {
+            numberOfListings
+            product {
+              id
+              title
+            }
+            topListings {
+              amount
+              market {
+                state {
+                  askServiceLevels {
+                    standard {
+                      lowest {
+                        amount
+                      }
+                    }
+                  }
+                }
+              }
+              media {
+                images {
+                  url
+                }
+              }
+              isOwner
+            }
+            minListing {
+              market {
+                state {
+                  askServiceLevels {
+                    standard {
+                      lowest {
+                        amount
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            maxListing {
+              market {
+                state {
+                  askServiceLevels {
+                    standard {
+                      lowest {
+                        amount
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      pageInfo {
+        limit
+        page
+        pageCount
+        queryId
+        queryIndex
+        total
+      }
+    }
+    seo {
+      title
+      blurb
+      richBlurb
+      meta {
+        name
+        value
+      }
+    }
+    sort {
+      id
+      name
+      description
+      seoUrlKey
+      short
+    }
+  }
+}`,queryId:"d24c331d779f9c4e50c980c251300cafb9f6fa137eb0210aa9efa9ee2bbc770f",name:"getDiscoveryData",kind:"query"},i=e=>(0,r.Z)({operation:{...n,variables:e?.variables},options:e?.options,context:e?.context,signal:e?.signal})},64678:(e,t,a)=>{a.d(t,{A:()=>n});var r=a(2091);let n=()=>(0,r.q9)()},87681:(e,t,a)=>{a.d(t,{A:()=>i});var r=a(87591),n=a(96443);let i=()=>"true"===(0,n.A)(r.A.feature_flag_conversational_search_web)},97245:(e,t,a)=>{a.d(t,{A:()=>i});var r=a(294),n=a(79107);let i=()=>{let e=(0,n.A)(),{region:t}=(0,r.A)();return e?.marketName??t??"US"}},98410:(e,t,a)=>{a.d(t,{A:()=>o});var r=a(27861),n=a(85098),i=a(15909),s=a(25083);let o=()=>{let e,t=(0,r.c)(2),a=(0,n.useSearchParams)(),o=(0,s.A)();if(t[0]!==a){let r=a?.get("country")??null;e=(0,i.A)(r)&&r,t[0]=a,t[1]=e}else e=t[1];return e||o||"US"}}}]);

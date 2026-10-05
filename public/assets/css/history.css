@@ -1,0 +1,243 @@
+/* history.css */
+
+/* =======================================================
+   1. CONTAINER CHÍNH & FORM LỌC KÍNH LỎNG
+======================================================== */
+.history-container {
+    background: rgba(156, 156, 156, 0.15) !important;
+    border: 2px solid rgba(0, 0, 0, 0.563) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 32px 0 rgba(140, 140, 140, 0.356) !important;
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    padding: 20px;
+    min-height: calc(100vh - 190px);
+}
+
+.glass-filter-form {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(5px);
+}
+
+.glass-input {
+    background-color: rgba(255, 255, 255, 0.4) !important;
+    border: 1px solid #000000 !important;
+    color: #000000 !important;
+    font-weight: bold;
+}
+
+/* Các Nút (Lọc / Reset) */
+.btn-action-glass {
+    background-color: #000000;
+    color: #ffffff;
+    border: 1px solid #000000;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+
+.btn-action-glass:hover {
+    background-color: transparent;
+    color: #000000;
+}
+
+.btn-cancel-glass {
+    background-color: transparent;
+    color: #000000;
+    border: 1px solid #000000 !important;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+
+.btn-cancel-glass:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* =======================================================
+   2. KHU VỰC BẢNG NHẬP/XUẤT
+======================================================== */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.glass-panel-header {
+    background-color: rgba(0, 0, 0, 0.9);
+    color: #ffffff;
+    padding: 12px 15px;
+    text-transform: uppercase;
+}
+
+.table-scroll {
+    max-height: 65vh;
+    overflow-y: auto;
+}
+
+/* Ẩn scrollbar cho đẹp */
+.table-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.table-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.table-scroll::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+}
+
+/* --- Table Kính Lỏng --- */
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.history-table th,
+.history-table td {
+    padding: 12px 15px;
+    vertical-align: middle;
+    background-color: transparent !important;
+}
+
+.history-table th.sticky-top,
+.history-table thead.sticky-top tr th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #ffffff !important;
+    color: #000000;
+    font-weight: bold;
+    border-bottom: none;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+}
+
+.history-table td {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    color: #000000;
+}
+
+.history-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+/* Gom nhóm dòng theo ngày & Hiệu ứng hover */
+.history-table tbody tr.row-group-gray td {
+    background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.history-table tbody tr:hover td,
+.history-table tbody tr.row-group-gray:hover td {
+    background-color: rgba(255, 255, 255, 0.4) !important;
+    cursor: pointer;
+}
+
+/* Nút Xem Chi Tiết (Dạng chữ) */
+.btn-view-glass {
+    background: transparent;
+    border: 1px solid #000000;
+    color: #000000;
+    border-radius: 20px;
+    padding: 4px 16px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-view-glass:hover {
+    background: #000000;
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* =======================================================
+   3. MODAL CHI TIẾT GIAO DỊCH
+======================================================== */
+.modal-backdrop.show {
+    opacity: 1 !important;
+    background-color: rgba(0, 0, 0, 0.7) !important;
+    backdrop-filter: blur(12px) saturate(150%) brightness(0.7) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(150%) brightness(0.7) !important;
+}
+
+.glass-modal {
+    background: rgba(81, 81, 81, 0.418) !important;
+    border: 1px solid rgb(255, 255, 255) !important;
+    border-radius: 20px !important;
+    color: #ffffff !important;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.glass-modal .modal-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.249) !important;
+    padding: 15px 20px;
+    background: transparent !important;
+}
+
+.glass-modal h5 {
+    margin: 0;
+    color: #ffffff !important;
+    font-weight: bold;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+}
+
+.modal-close {
+    cursor: pointer;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: #ffffff !important;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+    transition: transform 0.2s;
+}
+
+.modal-close:hover {
+    transform: scale(1.2);
+}
+
+/* Phần hiển thị tên sản phẩm (Đã gộp 3 class trùng lặp) */
+.border-bottom-glass {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 15px !important;
+    margin-bottom: 0 !important;
+}
+
+/* --- Bảng bên trong Modal --- */
+.modal-body .modal-inner-table {
+    margin-left: -1rem !important;
+    margin-right: -1rem !important;
+    width: calc(100% + 2rem) !important;
+}
+
+.modal-inner-table th,
+.modal-inner-table td {
+    padding: 12px 15px !important;
+}
+
+.modal-inner-table td {
+    color: #ffffff !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-inner-table tbody tr:hover td {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Thụt lề 2 bên bảng để tách viền */
+.modal-body .modal-inner-table th:first-child,
+.modal-body .modal-inner-table td:first-child {
+    padding-left: 1.5rem !important;
+}
+
+.modal-body .modal-inner-table th:last-child,
+.modal-body .modal-inner-table td:last-child {
+    padding-right: 1.5rem !important;
+}

@@ -1,0 +1,257 @@
+/* =======================================================
+   1. BỐ CỤC CHUNG (TOPBAR & LAYOUT)
+======================================================== */
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.topbar input {
+    width: 50%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+
+.topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.avatar {
+    width: 32px;
+    height: 32px;
+    background: #374151;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.ai-btn {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    background: white;
+    cursor: pointer;
+    border-radius: 6px;
+}
+
+/* =======================================================
+   2. DASHBOARD WIDGETS (CARDS, GRIDS, CHARTS)
+======================================================== */
+.cards {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.card {
+    flex: 1;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Hiệu ứng nảy nhẹ cho card khi di chuột */
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05) !important;
+}
+
+.card.highlight {
+    background: #374151;
+    color: white;
+}
+
+.grid {
+    display: flex;
+    gap: 20px;
+}
+
+.box {
+    flex: 1;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+/* Biểu đồ & Thanh tiến trình */
+.bar-item {
+    margin-bottom: 10px;
+}
+
+.bar {
+    height: 8px;
+    background: #e5e7eb;
+    border-radius: 4px;
+}
+
+.chart-placeholder {
+    height: 150px;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+
+.axis {
+    font-size: 12px;
+    color: #888;
+}
+
+/* Heatmap */
+.heatmap-box {
+    margin-top: 20px;
+}
+
+.note {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.heatmap {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 5px;
+}
+
+.cell {
+    height: 40px;
+    background: #e5e7eb;
+    border-radius: 4px;
+}
+
+/* =======================================================
+   3. MODAL KÍNH LỎNG (GLASSMORPHISM)
+======================================================== */
+/* Ép nền Modal thành kính */
+#detailModal .modal-content {
+    background: rgba(81, 81, 81, 0.418) !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    border-radius: 20px !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(15px) saturate(150%);
+    -webkit-backdrop-filter: blur(15px) saturate(150%);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+}
+
+/* Header & Footer mờ viền */
+#detailModal .modal-header,
+#detailModal .modal-footer {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Biến nút X và Tiêu đề thành màu trắng */
+#detailModal .btn-close {
+    color: #ffffff !important;
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+#detailModal .modal-title {
+    color: #ffffff !important;
+}
+
+/* =======================================================
+   4. BẢNG DỮ LIỆU BÊN TRONG MODAL (TABLES)
+======================================================== */
+/* Hủy nền trắng mặc định */
+#detailModal .table {
+    color: #ffffff !important;
+    background-color: transparent !important;
+    margin-bottom: 0;
+}
+
+/* Tiêu đề bảng (th) - Tối màu để tách biệt */
+#detailModal .table th {
+    background-color: rgba(38, 38, 38, 0.6) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+    vertical-align: middle !important;
+    font-weight: 600;
+}
+
+/* Dòng dữ liệu (td) */
+#detailModal .table td {
+    background-color: transparent !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+    vertical-align: middle !important;
+}
+
+/* Hiệu ứng Hover dòng - Sáng nhẹ */
+#detailModal .table>tbody>tr:hover>td {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    transition: background-color 0.2s ease;
+}
+
+/* =======================================================
+   5. KHỐI LỒNG NHAU (DRILL-DOWN NESTED)
+======================================================== */
+/* Cấp 2: Hộp chứa bảng Mẫu giày (Chìm xuống) */
+.product-container {
+    background-color: rgba(0, 0, 0, 0.2) !important;
+    border: 1px inset rgba(255, 255, 255, 0.1) !important;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Cấp 3: Các ô vuông Size/Màu (Nổi lên) */
+.variant-container .col-4>div {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
+    cursor: default;
+}
+
+.variant-container .col-4>div:hover {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+/* Nhấn mạnh con số Tồn Kho bằng Neon Đỏ */
+.variant-container strong {
+    color: #ff6b6b !important;
+    text-shadow: 0 0 5px rgba(255, 107, 107, 0.5);
+    font-size: 1.1em;
+}
+
+/* =======================================================
+   6. NÚT BẤM VÀ TRẠNG THÁI TRONG MODAL
+======================================================== */
+/* Nút Xem/Chi tiết dạng Kính */
+#detailModal .btn-get-products,
+#detailModal .btn-get-variants {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
+    border-radius: 6px;
+}
+
+#detailModal .btn-get-products:hover,
+#detailModal .btn-get-variants:hover {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    border-color: #ffffff !important;
+    color: #ffffff !important;
+}
+
+/* Vòng xoay Loading */
+.spinner-border {
+    color: rgba(255, 255, 255, 0.8) !important;
+}

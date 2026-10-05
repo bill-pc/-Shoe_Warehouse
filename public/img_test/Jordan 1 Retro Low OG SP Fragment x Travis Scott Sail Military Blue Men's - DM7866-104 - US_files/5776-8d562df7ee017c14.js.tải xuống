@@ -1,0 +1,111 @@
+"use strict";(self.webpackChunk_N_E=self.webpackChunk_N_E||[]).push([[5776],{20920:(e,t,r)=>{r.d(t,{d:()=>m});var i=r(41554),a=r(27861),n=r(36439),l=r(79176),o=r(22568),s=r(93745),d=r(12943),c=r(89354);let u=e=>{let t="string"==typeof e?new Date(e):e,r=new Date,{days:i,hours:a,minutes:n,seconds:l,total:o}=(0,c.A)(r,t);return o<=0?{days:0,hours:0,minutes:0,seconds:0,total:0}:{days:i,hours:a,minutes:n,seconds:l,total:o}},y=e=>String(e).padStart(2,"0"),p=(0,l.Bvv)(l.son,{baseStyle:{alignItems:"center",justifyContent:"start",borderRadius:"44px",height:"30px",width:"fit-content",minWidth:"85px",paddingX:3,paddingY:"6px","@keyframes bubble":{"0%":{transform:"scale(1)"},"50%":{transform:"scale(1.05)"},"100%":{transform:"scale(1)"}},'&[data-danger="true"]':{animation:"bubble 0.5s ease-in-out infinite"}}}),m=e=>{let t,r,c,m,R,b=(0,a.c)(17),{expirationTime:E,backgroundColor:I,dangerBackgroundColor:v,dangerThresholdInSeconds:f,onExpire:x,onDangerThreshold:O,isDarkModeOnly:L}=e,g=void 0===f?10:f,_=void 0!==L&&L;b[0]!==g||b[1]!==E||b[2]!==O||b[3]!==x?(t={expirationTime:E,dangerThresholdInSeconds:g,onExpire:x,onDangerThreshold:O},b[0]=g,b[1]=E,b[2]=O,b[3]=x,b[4]=t):t=b[4];let{timeUnits:h,isInDangerZone:k,isExpired:A}=(e=>{let t,r,i,l,o,s,c,y=(0,a.c)(16),{expirationTime:p,dangerThresholdInSeconds:m,onExpire:R,onDangerThreshold:b}=e,E=void 0===m?0:m;y[0]!==p?(t=()=>u(p),y[0]=p,y[1]=t):t=y[1];let[I,v]=(0,n.useState)(t),f=Math.floor(I.total/1e3),x=f<=0,O=E>0&&f>0&&f<=E;return y[2]!==O||y[3]!==b?(r=()=>{O&&b?.()},i=[O,b],y[2]=O,y[3]=b,y[4]=r,y[5]=i):(r=y[4],i=y[5]),(0,n.useEffect)(r,i),y[6]!==x||y[7]!==R?(l=()=>{x&&R?.()},o=[x,R],y[6]=x,y[7]=R,y[8]=l,y[9]=o):(l=y[8],o=y[9]),(0,n.useEffect)(l,o),y[10]!==p?(s=()=>{v(u(p))},y[10]=p,y[11]=s):s=y[11],(0,d.A)(s,x?null:1e3),y[12]!==x||y[13]!==O||y[14]!==I?(c={timeUnits:I,isInDangerZone:O,isExpired:x},y[12]=x,y[13]=O,y[14]=I,y[15]=c):c=y[15],c})(t),U=(e=>{let{days:t,hours:r,minutes:i,seconds:a}=e;return t>0?`${y(t)}:${y(r)}:${y(i)}:${y(a)}`:r>0?`${y(r)}:${y(i)}:${y(a)}`:`${y(i)}:${y(a)}`})(h),C=k||A?void 0===v?"red.600":v:_?"neutral.white":void 0===I?"brand-secondary":I,K=k?"true":void 0,D=k||A?"white":_?"black":"brand-tertiary";b[5]!==D?(r=(0,i.Y)(o.A,{boxSize:5,color:D,mb:"1px","data-testid":"timer-pill-icon"}),b[5]=D,b[6]=r):r=b[6];let w=k||A?"neutral.white":_?"neutral.black":"text-inverse";return b[7]!==U||b[8]!==w?(c=(0,i.Y)(l.EYj,{fontSize:"sm",fontFamily:"suisseIntlRegular",lineHeight:"18px",color:w,"data-testid":"timer-pill-time",width:"fit-content",textAlign:"start",children:U}),b[7]=U,b[8]=w,b[9]=c):c=b[9],b[10]!==c||b[11]!==r?(m=(0,i.FD)(s.A,{children:[r,c]}),b[10]=c,b[11]=r,b[12]=m):m=b[12],b[13]!==m||b[14]!==C||b[15]!==K?(R=(0,i.Y)(p,{backgroundColor:C,gap:1,"data-testid":"timer-pill","data-danger":K,children:m}),b[13]=m,b[14]=C,b[15]=K,b[16]=R):R=b[16],R}},33595:(e,t,r)=>{r.d(t,{g:()=>s});var i=r(27861),a=r(53544),n=r(7660);let l={query:`query GetMysteryBoxByUrlKey($urlKey: String!, $withTierInfo: Boolean = false) {
+  mysteryBoxByUrlKey(urlKey: $urlKey) {
+    id
+    name
+    description
+    market
+    state
+    product {
+      id
+      urlKey
+      name
+      model
+      media {
+        imageUrl
+      }
+    }
+    priceDetails {
+      currency
+      amount
+      meta {
+        floor
+        ceiling
+        average
+      }
+    }
+    tiers @include(if: $withTierInfo) {
+      id
+      tierLevel
+      probability
+      topProducts {
+        productId
+        imageUrl
+      }
+      minMaxPriceRange {
+        minPrice
+        maxPrice
+        currency
+      }
+      state
+    }
+    variants {
+      sizeChart {
+        type
+        displayOptions {
+          id
+          active
+          size
+          variant {
+            id
+            sizeChart {
+              baseSize
+            }
+          }
+        }
+      }
+    }
+  }
+}`,queryId:"2d973a7d8a2cbf83415ba8640e62e196e5bceb1d1f79a49c78e567e19831d0e5",name:"GetMysteryBoxByUrlKey",kind:"query"},o=e=>e?.mysteryBoxByUrlKey,s=(e,t)=>{let r,s,d,c=(0,i.c)(9),{urlKey:u}=e;c[0]!==t?(r=void 0===t?{}:t,c[0]=t,c[1]=r):r=c[1];let{enabled:y,select:p,placeholderData:m}=r,R=void 0===p?o:p;c[2]!==u?(s={urlKey:u,withTierInfo:!0},c[2]=u,c[3]=s):s=c[3];let b=!!u&&(void 0===y||y);return c[4]!==m||c[5]!==R||c[6]!==s||c[7]!==b?(d={variables:s,select:R,enabled:b,placeholderData:m},c[4]=m,c[5]=R,c[6]=s,c[7]=b,c[8]=d):d=c[8],(e=>{let t,r,o,s=(0,i.c)(9),d=e?.variables;if(s[0]!==d)t=d?["GetMysteryBoxByUrlKey",d]:["GetMysteryBoxByUrlKey"],s[0]=d,s[1]=t;else t=s[1];return s[2]!==e?.context||s[3]!==e?.requestOptions?(r=t=>{let r,{signal:i,queryKey:a}=t,[,o]=a;return r={variables:o,options:e?.requestOptions,context:e?.context,signal:i},(0,n.Z)({operation:{...l,variables:r?.variables},options:r?.options,context:r?.context,signal:r?.signal})},s[2]=e?.context,s[3]=e?.requestOptions,s[4]=r):r=s[4],s[5]!==e||s[6]!==t||s[7]!==r?(o={queryKey:t,queryFn:r,...e},s[5]=e,s[6]=t,s[7]=r,s[8]=o):o=s[8],(0,a.I)(o)})(d)}},72049:(e,t,r)=>{r.d(t,{BA:()=>o,cI:()=>n,nv:()=>a,u9:()=>i});let i="https://stockx.com/help/articles/what-is-a-stockx-mystery-box",a={sneaker:"/xpack_lowsneaker.riv",midsneaker:"/xpack_midsneaker.riv",collectible:"/xpack_lowcollectible.riv",apparel:"/xpack_lowapparel.riv"},n="mystery-boxes";var l,o=((l={}).INITIATED="INITIATED",l.ASK_LOCKED="ASK_LOCKED",l.REVEALED="REVEALED",l.DECISION_LOCKED="DECISION_LOCKED",l.FULFILLED="FULFILLED",l.ASK_LOCK_ERROR="ASK_LOCK_ERROR",l.ORDER_CREATION_ERROR="ORDER_CREATION_ERROR",l.ASK_UNLOCK_ERROR="ASK_UNLOCK_ERROR",l.FULFILLMENT_ERROR="FULFILLMENT_ERROR",l.PULL_CREATION_ERROR="PULL_CREATION_ERROR",l.PULL_ORDER_CANCELLED="PULL_ORDER_CANCELLED",l)},95568:(e,t,r)=>{r.d(t,{r:()=>o});var i=r(27861),a=r(53544),n=r(7660);let l={query:`query GetUserUnfulfilledPulls($packId: ID!) {
+  viewer {
+    userActivePulls(packId: $packId) {
+      pulls {
+        id
+        packId
+        variantId
+        userId
+        orderId
+        packAmount
+        totalPayment
+        currency
+        state
+        pulledAt
+        expiresAt
+        winningTier {
+          tierId
+          probability
+          tierLevel
+        }
+        winningItem {
+          amount
+          currency
+          winningAskId
+          product {
+            uuid
+            name
+            model
+            media {
+              imageUrl
+            }
+          }
+          variant {
+            sku
+          }
+        }
+        fulfillmentOption {
+          type
+          chosenBy
+          currency
+          purchaseTotal
+          creditAmount
+        }
+        error {
+          code
+          message
+        }
+        pullOrder {
+          chainId
+        }
+      }
+    }
+  }
+}`,queryId:"a733cdc52e829b0744828bd626a47c46e9d7265ae9c40e90e08844739525c822",name:"GetUserUnfulfilledPulls",kind:"query"},o=(e,t)=>{let r,o,s,d=(0,i.c)(8),{packId:c}=e;d[0]!==t?(r=void 0===t?{}:t,d[0]=t,d[1]=r):r=d[1];let{select:u,enabled:y}=r;d[2]!==c?(o={packId:c},d[2]=c,d[3]=o):o=d[3];let p=!!c&&(void 0===y||y);return d[4]!==u||d[5]!==o||d[6]!==p?(s={variables:o,select:u,enabled:p},d[4]=u,d[5]=o,d[6]=p,d[7]=s):s=d[7],(e=>{let t,r,o,s=(0,i.c)(9),d=e?.variables;if(s[0]!==d)t=d?["GetUserUnfulfilledPulls",d]:["GetUserUnfulfilledPulls"],s[0]=d,s[1]=t;else t=s[1];return s[2]!==e?.context||s[3]!==e?.requestOptions?(r=t=>{let r,{signal:i,queryKey:a}=t,[,o]=a;return r={variables:o,options:e?.requestOptions,context:e?.context,signal:i},(0,n.Z)({operation:{...l,variables:r?.variables},options:r?.options,context:r?.context,signal:r?.signal})},s[2]=e?.context,s[3]=e?.requestOptions,s[4]=r):r=s[4],s[5]!==e||s[6]!==t||s[7]!==r?(o={queryKey:t,queryFn:r,...e},s[5]=e,s[6]=t,s[7]=r,s[8]=o):o=s[8],(0,a.I)(o)})(s)}}}]);

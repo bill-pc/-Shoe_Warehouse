@@ -1,0 +1,14 @@
+# File: .gitignore
+.env
+
+# Chặn thư mục chứa bộ não AI 
+ai_services/models/
+
+public/assets/img_temp
+
+/vendor/
+
+# Chặn các file cấu hình nhạy cảm chứa API Key/Credentials
+config/pusherconfig.php
+config/QRconfig.php
+config/stockconfig.php

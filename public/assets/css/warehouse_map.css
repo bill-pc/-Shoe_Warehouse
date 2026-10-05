@@ -1,0 +1,285 @@
+
+/* =======================================================
+   SƠ ĐỒ KHO (HEATMAP KÍNH LỎNG TRẮNG ĐEN)
+======================================================== */
+
+/* --- KHUNG CHỨA TỔNG THỂ --- */
+.warehouse-map-glass {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(15px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    border-radius: 15px !important;
+}
+
+/* --- KHUNG CỦA TỪNG KỆ --- */
+.shelf-wrapper {
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+.shelf-title {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    margin: -1rem -1rem 1rem -1rem;
+    padding: 12px;
+    border-radius: 10px 10px 0 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    letter-spacing: 1.5px;
+    font-size: 1.1rem;
+}
+
+
+/* --- LƯỚI Ô VUÔNG KÈM SỐ TẦNG --- */
+.shelf-grid {
+    display: grid;
+    grid-template-columns: max-content repeat(6, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 10px;
+    padding: 8px;
+    align-items: center;
+}
+
+/* --- STYLE CHO CHỮ TẦNG --- */
+.tier-label {
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: bold;
+    text-align: right;
+    padding-right: 15px;
+    font-size: 0.95rem;
+    white-space: nowrap;
+}
+
+/* --- TỪNG Ô VUÔNG NHỎ --- */
+.shelf-cell {
+    aspect-ratio: 1/1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease-in-out;
+
+    /* Hiệu ứng kính lỏng */
+    backdrop-filter: blur(10px) saturate(150%);
+    -webkit-backdrop-filter: blur(10px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+
+    /* Đổ màu gradient Trắng - Đen theo tỷ lệ % */
+    background: linear-gradient(to top, rgba(255, 255, 255, 0.95) var(--fill, 0%), rgba(0, 0, 0, 0.7) var(--fill, 0%));
+    position: relative;
+    overflow: hidden;
+    overflow: visible !important;
+}
+
+.shelf-cell:hover {
+    transform: scale(1.15);
+    border-color: #fff;
+    z-index: 10;
+}
+
+/* Tự lật màu chữ trắng/đen */
+.shelf-cell span {
+    color: #fff;
+    mix-blend-mode: difference;
+    z-index: 2;
+}
+
+/* =======================================================
+   TÙY CHỈNH POPOVER (LÀM TO ẢNH VÀ CHỮ LÊN)
+======================================================== */
+.popover {
+    background: rgba(15, 15, 15, 0.95) !important;
+    /* Đen nhám kính lỏng */
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    max-width: 380px !important;
+    /* Mở rộng chiều ngang cho popover */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+}
+
+.popover-body {
+    padding: 15px !important;
+}
+
+/* Kích thước ảnh to hơn */
+.popover-shoe-img {
+    width: 65px !important;
+    height: 65px !important;
+    object-fit: cover;
+}
+
+/* Chữ bự dễ đọc */
+.popover-shoe-name {
+    font-size: 1.05rem;
+    max-width: 200px;
+}
+
+.popover-shoe-detail {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.popover-shoe-qty {
+    font-size: 1.1rem;
+    padding: 6px 12px !important;
+}
+
+
+/* Hiệu ứng nhấp nháy khi tìm kiếm biến thể trên kệ */
+@keyframes pulse-glow-search {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.8);
+        border-color: #ffc107;
+        transform: scale(1);
+    }
+
+    50% {
+        box-shadow: 0 0 15px 10px rgba(255, 193, 7, 0);
+        border-color: #ffc107;
+        transform: scale(1.1);
+        z-index: 10;
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+        border-color: rgba(255, 255, 255, 0.5);
+        transform: scale(1);
+    }
+}
+
+.slot-highlighted {
+    animation: pulse-glow-search 1.5s infinite !important;
+    border: 2px solid #ffc107 !important;
+    z-index: 10;
+    background-color: rgba(255, 193, 7, 0.2) !important;
+}
+
+/* Container bao quanh Sơ đồ kho */
+.warehouse-header-bar {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(15px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    padding: 15px 25px !important;
+    border-radius: 15px !important;
+}
+
+/* Container của ô input */
+.map-search-box {
+    z-index: 1060 !important;
+}
+
+/* Ô Input tìm kiếm map */
+.custom-map-search {
+     background-color: rgba(255, 255, 255, 0.3) !important;
+    border: 1px solid rgba(0, 0, 0, 0.8) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+
+/* Hiệu ứng Hover & Focus cho ô tìm kiếm */
+.custom-map-search:hover,
+.custom-map-search:focus {
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    border-color: #000000 !important;
+    color: #000000 !important;
+    /* Khi focus nền trắng thì chữ chuyển đen */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4) !important;
+    outline: none;
+}
+
+/* Danh sách gợi ý (Suggestions) */
+.map-suggestions-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    margin-top: 8px;
+    z-index: 9999 !important;
+    background-color: #ffffff !important;
+    border: 1px solid rgba(0, 0, 0, 0.8) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
+    max-height: 300px;
+}
+
+/* Item trong danh sách gợi ý */
+.map-suggestions-list .list-group-item {
+    background-color: #ffffff !important;
+    border: none;
+    border-bottom: 1px solid #f0f0f0;
+    color: #000000 !important;
+    padding: 12px 15px;
+    transition: all 0.2s ease;
+}
+
+.map-suggestions-list .list-group-item:hover {
+    background-color: #f8f9fa !important;
+    padding-left: 25px !important;
+    color: #000000 !important;
+}
+
+/* Badge sức chứa tổng kiểu Glass */
+.status-badge-glass {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(5px);
+    color: white;
+}
+/* Ẩn bảng chi tiết mặc định */
+.popover-inventory {
+    position: absolute;
+    bottom: 110%; /* Nằm trên ô vuông */
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    width: 300px;
+    background: rgba(20, 20, 20, 0.98);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 15px;
+    border-radius: 12px;
+    z-index: 9999;
+    
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none; /* Tránh việc bị cản chuột khi chưa hiện */
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* CẦU NỐI VÔ HÌNH: Lấp đầy khoảng trống 10% giữa ô và bảng */
+.popover-inventory::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    height: 20px;
+    background: transparent;
+}
+
+/* KHI RÊ CHUỘT VÀO Ô HOẶC CHÍNH CÁI BẢNG */
+.shelf-cell:hover .popover-inventory,
+.popover-inventory:hover {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto; /* Cho phép click vào link */
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Hiệu ứng link */
+.popover-inventory a:hover strong {
+    color: #ffc107 !important;
+    text-decoration: underline;
+}

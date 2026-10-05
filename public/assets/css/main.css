@@ -1,0 +1,61 @@
+/* --- 1. Reset Toàn Diện --- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+    width: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    /* background: linear-gradient(to bottom right,
+            rgba(122, 122, 122, 0.386),
+            rgb(255, 255, 255)
+        ); */
+        
+    overflow: hidden;
+    /* Tránh thanh cuộn kép của body */
+}
+
+/* --- 2. Layout Chính --- */
+.app {
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+}
+
+/* Thùng chứa bên phải (Header + Content + Footer) */
+.main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0px 20px;
+}
+
+/* Phần ruột chứa nội dung trang (Dashboard, Employees...) */
+.content {
+    flex: 1;
+    padding: 25px;
+    /* Đẩy padding xuống đây để nội dung không dính lề */
+    overflow-y: auto;
+    /* Chỉ cho phép cuộn ở phần này */
+}
+
+/* --- 3. Typography & Tiện ích --- */
+h1 {
+    margin-bottom: 15px;
+    font-weight: 700;
+}
+
+.subtitle {
+    color: #6b7280;
+    margin-bottom: 20px;
+}
+
+/* Đảm bảo Header không có margin thừa */
+.header h2 {
+    margin: 0 !important;
+}

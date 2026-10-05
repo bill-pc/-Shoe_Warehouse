@@ -1,0 +1,119 @@
+/* --- 1. CARD DANH MỤC (GLASSMORPHISM) --- */
+.brand-card.card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+    z-index: 1;
+    background: rgba(156, 156, 156, 0.15) !important; 
+    border: 2px solid rgba(0, 0, 0, 0.563) !important; 
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    box-shadow: 0 8px 32px 0 rgba(140, 140, 140, 0.356) !important;
+}
+
+/* --- 2. KHU VỰC CHỨA KHUNG LOGO --- */
+.brand-logo-wrapper {
+    height: 190px !important; 
+    background-color: transparent !important; 
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* --- 3. KHUNG TRẮNG CHỨA LOGO --- */
+.brand-logo-wrapper img {
+    width: 90% !important;   
+    max-height: 120px !important; 
+    padding: 15px !important; 
+    margin-top: 30px;
+    background-color: #ffffff !important;
+    border-radius: 20px !important; 
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08) !important; 
+    object-fit: contain !important; 
+    position: relative;
+    z-index: 1;
+    transition: all 0.3s ease-in-out !important;
+}
+
+/* Hover: Khung trắng nảy lên nhẹ */
+.brand-card:hover .brand-logo-wrapper img {
+    transform: translateY(-6px) scale(1.03);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Badge trạng thái */
+.brand-logo-wrapper .badge {
+    z-index: 20 !important;
+    isolation: isolate; 
+}
+
+/* --- 4. NÚT KHO HÀNG --- */
+/* Đang kinh doanh */
+.btn-kho-active {
+    border: 2px solid #000000 !important;
+    color: #000000 !important;
+    background-color: transparent !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-kho-active:hover {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15) !important;
+    transform: translateY(-2px); 
+}
+
+/* Tạm ngưng */
+.btn-kho-paused {
+    border: 2px solid #adb5bd !important;
+    color: #adb5bd !important;
+    background-color: transparent !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-kho-paused:hover {
+    background-color: #adb5bd !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1) !important;
+    transform: translateY(-2px);
+}
+
+/* --- 5. NÚT TRẠNG THÁI (GLASS) --- */
+.btn-glass-status {
+    border: 2px solid rgba(0, 0, 0, 0.5) !important;
+    color: rgb(0, 0, 0) !important;
+}
+
+.btn-glass-status:hover {
+    box-shadow: 0 0 15px rgba(26, 26, 26, 0.3);
+    color: rgb(0, 0, 0) !important;
+}
+
+
+
+/* modal thêm brand */
+.btn-glass {
+    background: rgba(255, 255, 255, 0) !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    color: white !important;
+}
+
+.btn-glass:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* --- Style cho ô Input kính mờ --- */
+.input-glass {
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.input-glass::file-selector-button {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: white;
+}
+
+.btn-add-brand:hover{
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3) !important;
+}
+
+

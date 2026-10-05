@@ -1,0 +1,223 @@
+/* --- NỀN FULL CHO TOÀN BỘ TRANG --- */
+.login-bg {
+    /* Đặt ảnh nền ở đây để nó phủ kín toàn bộ trang */
+    background-image: url('../img_logo/bg1.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+/* --- PHẦN BÊN TRÁI (LÀM MỜ NHẸ 3px) --- */
+.left-panel {
+    /* Bỏ background-image ở đây đi vì đã có .login-bg lo */
+    position: relative;
+}
+
+.overlay-blur {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.545);
+    /* Phủ đen 40% */
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    z-index: 1;
+}
+
+.hero-title {
+    text-shadow: 2px 4px 12px rgba(0, 0, 0, 0.5);
+    letter-spacing: -1px;
+}
+
+/* --- PHẦN BÊN PHẢI (HIỆU ỨNG KÍNH MỜ - GLASSMORPHISM) --- */
+.right-panel {
+    /* Đổi từ màu đặc sang màu đen trong suốt (opacity 65%) */
+    background-color: rgba(15, 17, 21, 0.65);
+
+    /* Làm mờ mạnh (20px) để nhìn rõ form đăng nhập */
+    backdrop-filter: blur(50px);
+    -webkit-backdrop-filter: blur(20px);
+
+    /* Thêm một đường viền xám siêu mỏng bên trái để tạo cảm giác lát cắt của kính */
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+
+    box-shadow: -20px 0 50px rgba(0, 0, 0, 0.6);
+    z-index: 2;
+}
+
+.login-box {
+    max-width: 450px;
+    margin: 0 auto;
+}
+/* --- 1. Style cho các ô Input xuyên thấu (Ghost Inputs) --- */
+.form-control {
+    background: none !important; /* Dùng background thay vì background-color */
+    background-color: transparent !important; 
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(10px);
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+    border-radius: 8px !important;
+    padding: 14px 16px !important;
+    
+    /* CHIÊU THỨC QUAN TRỌNG: Ép trình duyệt hiểu đây là giao diện tối */
+    color-scheme: dark; 
+}
+
+/* HIỆU ỨNG KHI NHẬP NỘI DUNG / FOCUS */
+.form-control:focus {
+    background: none !important;
+    background-color: transparent !important;
+    border-color: rgba(255, 255, 255, 0.8) !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+    transform: translateY(-2px);
+    outline: none;
+}
+
+/* --- XỬ LÝ TRIỆT ĐỂ LỖI TRẮNG XÓA KHI NHẬP (AUTOFILL) --- */
+/* Đây là đoạn code "vàng" để chặn đứng màu nền của trình duyệt */
+.form-control:-webkit-autofill,
+.form-control:-webkit-autofill:hover, 
+.form-control:-webkit-autofill:focus, 
+.form-control:-webkit-autofill:active {
+    /* Mẹo dùng background-clip để ép nền biến mất */
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: #ffffff !important;
+    
+    /* Chặn đứng mọi loại shadow/nền mà trình duyệt tự đẻ ra */
+    transition: background-color 5000s ease-in-out 0s;
+    box-shadow: inset 0 0 20px 20px rgba(0,0,0,0) !important;
+}
+
+/* Chỉnh nhãn label phía trên cho trắng sáng */
+.custom-label {
+    display: block;
+    color: #ffffff !important;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Chỉnh placeholder xám bạc */
+.form-control::placeholder {
+    color: rgba(255, 255, 255, 0.4) !important;
+    font-style: italic;
+}
+
+/* --- CHI TIẾT LABEL (SÁNG LÊN) --- */
+.custom-label {
+    display: block;
+    color: rgba(255, 255, 255, 0.9); /* Trắng gần như tuyệt đối để nổi bật */
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    margin-left: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* --- TĂNG CHIỀU CAO VÀ CHỈNH PLACEHOLDER CHO INPUT --- */
+.form-control {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(10px);
+    
+    /* Tăng chiều cao bằng cách tăng padding trên/dưới lên 12px hoặc 15px */
+    padding: 14px 16px !important; 
+    
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+    border-radius: 10px !important;
+}
+
+/* CHỈNH MÀU PLACEHOLDER SÁNG LÊN */
+.form-control::placeholder {
+    color: rgba(255, 255, 255, 0.5) !important; /* Màu xám bạc sáng */
+    font-size: 0.9rem;
+    font-style: italic;
+    opacity: 1; /* Cần thiết cho Firefox */
+}
+
+/* Khi Focus (đang gõ) thì placeholder mờ đi một tí cho đỡ rối */
+.form-control:focus::placeholder {
+    color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Giữ nguyên các hiệu ứng Hover/Focus của bồ nhưng tinh chỉnh shadow */
+.form-control:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.5) !important;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+    transform: translateY(-2px);
+}
+
+.form-control:focus {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    border-color: rgba(255, 255, 255, 0.9) !important;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6) !important;
+    transform: translateY(-2px);
+}
+
+/* --- 2. Style cho Nút Đăng nhập trong suốt (Ghost Button) --- */
+.btn-login {
+    background-color: transparent !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important; /* Viền xám mờ đồng bộ input */
+    color: #ffffff !important;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    backdrop-filter: blur(5px);
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Hiệu ứng khi rê chuột vào Nút (Hover) */
+.btn-login:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.8) !important;
+    color: #ffffff !important;
+    
+    /* Đổ bóng sâu tạo chiều sâu */
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    
+    /* Nhích nhẹ lên đồng bộ với input */
+    transform: translateY(-3px);
+}
+
+/* Hiệu ứng khi nhấn vào nút (Active) */
+.btn-login:active {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+
+.alert-glass-danger {
+    background: rgba(255, 255, 255, 0.1) !important; /* Nền đỏ cực nhạt trong suốt */
+    backdrop-filter: blur(10px); /* Hiệu ứng mờ kính */
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.4) !important; /* Viền đỏ mảnh */
+    color: #ffffff !important; /* Chữ đỏ sáng để nổi trên nền tối */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Hiệu ứng nháy đỏ "thở" cho đồng bộ với các Modal khác */
+.alert-glass-blink {
+    animation: glass-blink-red 2s infinite ease-in-out;
+}
+
+@keyframes glass-blink-red {
+    0%, 100% { 
+        box-shadow:  0 4px 15px rgba(255, 255, 255, 0.2);
+        opacity: 1; 
+    }
+    50% { 
+        box-shadow:  0 4px 15px rgba(255, 255, 255, 0.2);
+        opacity: 0.8; 
+    }
+}

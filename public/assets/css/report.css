@@ -1,0 +1,288 @@
+    /* =========================================
+       CSS CHUNG & LAYOUT
+       ========================================= */
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f4f7f6;
+        color: #333;
+    }
+
+    .card-custom {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+
+    .section-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #4e73df;
+        margin-bottom: 15px;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+    }
+
+    .section-title::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: #e3e6f0;
+        margin-left: 15px;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+        width: 100%;
+    }
+
+    /* =========================================
+       CSS CHO KPI CARDS
+       ========================================= */
+    .stat-label {
+        font-size: 0.75rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-top: 5px;
+    }
+
+    .border-left-primary {
+        border-left: 4px solid #4e73df;
+    }
+
+    .border-left-success {
+        border-left: 4px solid #1cc88a;
+    }
+
+    .border-left-warning {
+        border-left: 4px solid #f6c23e;
+    }
+
+    .border-left-danger {
+        border-left: 4px solid #e74a3b;
+    }
+
+    /* =========================================
+       CSS CHO BẢNG (TABLES)
+       ========================================= */
+    .table thead th {
+        background: #f8f9fc;
+        font-weight: 600;
+        color: #4e73df;
+        border-bottom: 2px solid #e3e6f0;
+        font-size: 0.85rem;
+    }
+
+    .table td {
+        vertical-align: middle;
+        font-size: 0.9rem;
+        border-bottom: 1px solid #e3e6f0;
+    }
+
+    /* =========================================
+       CSS BẢNG BIẾN THỂ CỦA TOP 5 SẢN PHẨM
+       ========================================= */
+    .top-product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+    }
+
+    .top-p-card {
+        background: #fff;
+        border: 1px solid #000000;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .top-p-header {
+        background: #5c5c5c66;
+        color: #ffffff;
+        /* Thủ thuật giúp chữ tự đổi màu tương phản theo nền phía sau */
+        mix-blend-mode: difference;
+        padding: 12px 15px;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .top-p-header .badge-vol {
+        background: rgba(255, 255, 255, 0.25);
+        color: #ffffff;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+    }
+
+
+
+    .top-p-body {
+        padding: 0;
+    }
+
+    .v-item {
+        padding: 12px 15px;
+        border-bottom: 1px solid #f1f3f9;
+    }
+
+    .v-item:last-child {
+        border-bottom: none;
+    }
+
+    .v-item-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .v-item-stats {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-top: 5px;
+    }
+
+    .progress-stacked {
+        display: flex;
+        height: 8px;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 4px;
+        background-color: #eaecf4;
+    }
+
+    .progress-imp {
+        background-color: #4e73df;
+    }
+
+    .progress-exp {
+        background-color: #1cc88a;
+    }
+
+    /* =========================================
+       CSS TỒN KHO CHI TIẾT (GROUPING CARDS)
+       ========================================= */
+    .inventory-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 20px;
+        max-height: 500px;
+        overflow-y: auto;
+        padding-right: 10px;
+    }
+
+    .inv-product-card {
+        border: 1px solid #000000;
+        border-radius: 8px;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+        transition: transform 0.2s;
+    }
+
+    .inv-product-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .inv-header {
+        background: #5c5c5c66;
+        padding: 10px 15px;
+        border-bottom: 1px solid #e3e6f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 8px 8px 0 0;
+    }
+
+    .inv-header strong {
+        font-size: 0.9rem;
+        color: #333;
+    }
+
+    .inv-brand-badge {
+        font-size: 0.65rem;
+        background: #eaecf4;
+        color: #5a5c69;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-weight: 600;
+        border: 1px solid #d1d3e2;
+    }
+
+    .inv-body {
+        padding: 15px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .stock-chip {
+        border: 1px solid #d1d3e2;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        color: #5a5c69;
+    }
+
+    .stock-chip b {
+        color: #333;
+        font-size: 0.85rem;
+    }
+
+    .stock-chip.danger {
+        border-color: #e74a3b;
+        background: #fff1f0;
+        color: #e74a3b;
+    }
+
+    .stock-chip.danger b {
+        color: #e74a3b;
+    }
+
+    /* =========================================
+       CSS KHI IN ẤN (PRINT)
+       ========================================= */
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+
+        .card-custom {
+            box-shadow: none;
+            border: 1px solid #ccc;
+            break-inside: avoid;
+        }
+
+        .inventory-grid {
+            max-height: none;
+            overflow: visible;
+            display: block;
+        }
+
+        .inv-product-card {
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+        }
+    }

@@ -1,0 +1,459 @@
+/* =======================================================
+   1. THANH TOPBAR & Ô TÌM KIẾM
+======================================================== */
+.topbar {
+    position: -webkit-sticky !important;
+    position: sticky !important;
+    top: 0;
+    z-index: 1020 !important;
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    backdrop-filter: blur(15px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
+    border: 1px solid rgba(0, 0, 0, 0.8) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    padding: 15px 25px !important;
+    border-radius: 15px !important;
+    transition: background-color 0.3s ease;
+}
+
+.search-box {
+    position: relative;
+    overflow: visible !important;
+    z-index: 1060 !important;
+    /* Đã gộp: Xóa z-index 1021 thừa */
+}
+
+/* Ô Tìm Kiếm & Nút Dropdown User */
+#mainSearch,
+.user-info .dropdown .cursor-pointer {
+    background-color: rgba(255, 255, 255, 0.3) !important;
+    border: 1px solid rgba(0, 0, 0, 0.8) !important;
+    color: #000000 !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 10px !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hiệu ứng Hover & Focus Topbar */
+#mainSearch:hover,
+#mainSearch:focus {
+    background-color: rgba(255, 255, 255, 0.8) !important;
+    border-color: #000000 !important;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3) !important;
+    outline: none;
+}
+
+.topbar .btn:hover {
+    border-color: #000000 !important;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3) !important;
+}
+
+#userMenu {
+    border: 1px solid transparent;
+}
+
+#userMenu:hover {
+    border-color: #000000 !important;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3) !important;
+}
+
+#userMenu:hover span {
+    color: #000000 !important;
+}
+
+/* =======================================================
+   2. BẢNG KẾT QUẢ TÌM KIẾM (SEARCH RESULTS)
+======================================================== */
+#searchResults {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    margin-top: 8px;
+    z-index: 9999 !important;
+    background-color: #ffffff !important;
+    border: 1px solid rgba(0, 0, 0, 0.8) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+}
+
+#searchResults .list-group-item {
+    background-color: #ffffff !important;
+    border: none;
+    border-bottom: 1px solid #f0f0f0;
+    color: #000000 !important;
+    padding: 12px 15px;
+    transition: all 0.2s ease;
+}
+
+#searchResults .list-group-item:hover {
+    background-color: #f8f9fa !important;
+    padding-left: 25px !important;
+    color: #000000 !important;
+}
+
+#searchResults .list-group-item .text-secondary {
+    color: #666666 !important;
+}
+
+#searchResults img {
+    border-radius: 4px;
+    border: 1px solid #eee;
+}
+
+/* =======================================================
+   3. BASE MODAL (HIỆU ỨNG KÍNH MỜ & TEXT TRẮNG)
+======================================================== */
+/* Lớp phủ mờ nền (Đã gộp 2 class trùng lặp) */
+.modal-backdrop.show {
+    opacity: 1 !important;
+    background-color: rgba(0, 0, 0, 0.7) !important;
+    /* Đã đồng bộ màu tối 70% */
+    backdrop-filter: blur(12px) saturate(150%) brightness(0.7) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(150%) brightness(0.7) !important;
+    transition: opacity 0.3s ease;
+
+}
+
+/* Cấu trúc hộp Modal */
+.modal-content {
+    background: rgba(81, 81, 81, 0.418) !important;
+    border: 1px solid rgb(255, 255, 255) !important;
+    border-radius: 20px !important;
+    color: #ffffff !important;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header,
+.modal-footer {
+    border-color: rgba(255, 255, 255, 0.249) !important;
+    background: transparent !important;
+}
+
+/* Nhuộm trắng chữ cơ bản */
+.modal-content h5,
+.modal-content h6,
+.modal-content label {
+    color: #ffffff !important;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+}
+
+.modal-content .text-dark {
+    color: #ffffff !important;
+}
+
+.modal-content .text-secondary,
+.modal-content .text-muted {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* =======================================================
+   4. FORM INPUTS & BUTTONS TRONG MODAL
+======================================================== */
+/* Đã gộp các thuộc tính form-control bị phân tán */
+.modal-content .form-control,
+.modal-content .form-select,
+.modal-content textarea,
+.modal .upload-zone {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(5px);
+    border-radius: 10px !important;
+    caret-color: #ffffff !important;
+}
+
+.modal-content .form-control:focus,
+.modal-content textarea:focus {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-color: #ffffff !important;
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Placeholders */
+.modal .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.modal .form-control::-webkit-input-placeholder {
+    color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.modal .form-control::-moz-placeholder {
+    color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Buttons */
+.modal-content .btn-outline-secondary {
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    color: #ffffff !important;
+}
+
+.modal-content .btn-outline-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-color: #ffffff !important;
+}
+
+.modal-content .btn-success {
+    background-color: rgba(25, 135, 84, 0.4) !important;
+    border: 1px solid rgba(25, 135, 84, 0.8) !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(5px);
+}
+
+.modal-content .btn-success:hover {
+    background-color: rgba(25, 135, 84, 0.6) !important;
+    box-shadow: 0 0 15px rgba(25, 135, 84, 0.4) !important;
+}
+
+.btn-glass-confirm {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    color: white !important;
+}
+
+.btn-glass-confirm:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+.modal .btn-dark,
+.modal .btn-outline-dark {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    color: #ffffff !important;
+}
+
+/* Phân chia layout */
+.border-end-glass {
+    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Đã xóa class bị lặp */
+.border-bottom-glass {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.glass-inner-box {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* =======================================================
+   5. BẢNG VÀ ALIGNMENT TRONG MODAL PROFILE
+======================================================== */
+.modal-content .table {
+    color: #ffffff !important;
+    background-color: transparent !important;
+}
+
+/* Gộp tất cả các thuộc tính căn giữa, màu sắc của th và td vào một chỗ */
+#profileModal th,
+#profileModal td,
+#updateProfileModal .table th,
+#updateProfileModal .table td {
+    text-align: center !important;
+    vertical-align: middle !important;
+    padding: 12px 5px !important;
+    display: table-cell;
+    background-color: transparent !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Phân cấp Tiêu đề (Mờ) - Nội dung (Sáng) */
+#profileModal th,
+#updateProfileModal .text-secondary.fw-bold {
+    color: rgba(255, 255, 255, 0.5) !important;
+    font-weight: 500 !important;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+#profileModal td,
+#updateProfileModal .text-end {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem;
+  
+}
+
+/* Xóa khoảng cách thừa */
+.modal-body .ps-3 {
+    padding-left: 0 !important;
+}
+
+/* Table Striped & Hover cho Modal Update */
+.modal-content .table-striped>tbody>tr:nth-of-type(odd)>* {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+    color: #ffffff !important;
+}
+
+.modal-content .table-hover>tbody>tr:hover>* {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Badge Quyền hạn */
+#profileModal .badge {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(5px);
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-weight: 700;
+    display: inline-block;
+    margin: 0 auto !important;
+}
+
+/* =======================================================
+   6. ALERT & HIỆU ỨNG NHẤP NHÁY
+======================================================== */
+.alert-glass-blink {
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+    animation: glass-pulse 2s infinite ease-in-out;
+    display: flex;
+    align-items: center;
+}
+
+@keyframes glass-pulse {
+    0% {
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.4);
+        transform: scale(1);
+    }
+
+    50% {
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+        border-color: rgba(255, 255, 255, 0.8);
+        transform: scale(1.01);
+    }
+
+    100% {
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.4);
+        transform: scale(1);
+    }
+}
+
+.alert-glass-blink i,
+.alert-glass-blink strong {
+    color: #ffffff !important;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+}
+
+
+/* --- STYLE CHO TABS KÍNH LỎNG --- */
+.glass-tabs {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 5px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-tabs .nav-link {
+    color: rgba(255, 255, 255, 0.6);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+}
+
+.glass-tabs .nav-link:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.glass-tabs .nav-link.active {
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}
+
+
+/* =======================================================
+   7. TÙY CHỈNH THẺ SELECT & COMBOBOX 
+======================================================== */
+
+/* Đảm bảo thẻ select khi thu gọn vẫn đúng chuẩn kính lỏng */
+.modal-content select.form-select {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Đổi màu khi sổ danh sách (Options) xuống thành Nền Trắng, Chữ Đen */
+.modal-content select.form-select option {
+    background-color: #ffffff !important;
+    /* Nền trắng đặc */
+    color: #000000 !important;
+    /* Chữ đen */
+    padding: 10px !important;
+    border: 1px solid black;
+}
+
+/* Tùy chỉnh riêng cho tùy chọn tạo mới (Nếu có) */
+.modal-content select.form-select option[value="new"] {
+    color: #4b4b4b46 !important;
+    /* Xanh đậm để nổi bật */
+    background-color: #f0f8ff !important;
+    /* Xanh nhạt làm nền */
+}
+
+/* Hover effect trên trình duyệt hỗ trợ (Firefox/Chrome mới) */
+.modal-content select.form-select option:hover,
+.modal-content select.form-select option:checked {
+    background-color: #e9ecef !important;
+    color: #000000 !important;
+}
+
+/* Nhuộm trắng cho thanh cuộn (Scrollbar) của dropdown nếu quá dài */
+.modal-content select.form-select::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal-content select.form-select::-webkit-scrollbar-track {
+    background: #ffffff;
+}
+
+.modal-content select.form-select::-webkit-scrollbar-thumb {
+    background: #000000;
+    border-radius: 4px;
+}
+
+
+/* Đổi màu khi sổ danh sách (Options) xuống thành Nền Trắng, Chữ Đen */
+.modal-content select.form-select option {
+    background-color: #ffffff !important;
+    /* Nền trắng đặc */
+    color: #000000 !important;
+    /* Chữ đen */
+    padding: 10px !important;
+}
+
+/* Tùy chỉnh riêng cho tùy chọn "Tạo mới" (Đổi sang xám thay vì xanh) */
+.modal-content select.form-select option[value="new"] {
+    color: #333333 !important;
+    /* Chữ xám đậm/đen để nổi bật */
+    background-color: #eaeaea !important;
+    /* Nền xám nhạt */
+    font-weight: bold;
+}
+
+/* Hover effect: Ép màu xám khi đưa chuột hoặc khi đang được chọn */
+.modal-content select.form-select option:hover,
+.modal-content select.form-select option:focus,
+.modal-content select.form-select option:checked {
+    background-color: #cccccc !important;
+    /* Màu xám đặc */
+    color: #000000 !important;
+    /* Mẹo ép màu highlight xám trên một số trình duyệt (như Firefox) */
+    box-shadow: 0 0 10px 100px #cccccc inset !important;
+}

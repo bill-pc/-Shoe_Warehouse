@@ -1,0 +1,141 @@
+"use strict";(self.webpackChunk_N_E=self.webpackChunk_N_E||[]).push([[7580],{12238:(e,t,r)=>{r.d(t,{A:()=>i});let l=[{text:"sneakers",url:"category/sneakers"},{text:"shoes",url:"category/shoes"},{text:"apparel",url:"category/apparel"},{text:"electronics",url:"category/electronics"},{text:"trading cards",url:"category/trading-cards"},{text:"collectibles",url:"category/collectibles"},{text:"accessories",url:"category/accessories"}],i=e=>{let t=e?.browseVerticals?.filter(e=>l.map(e=>e.text).includes(e))?.[0];return t?.replace(" ","_")}},15909:(e,t,r)=>{r.d(t,{A:()=>i});let l=new Set(["AF","AX","AL","DZ","AS","AD","AO","AI","AQ","AG","AR","AM","AW","AU","AT","AZ","BS","BH","BD","BB","BY","BE","BZ","BJ","BM","BT","BO","BQ","BA","BW","BV","BR","IO","BN","BG","BF","BI","CV","KH","CM","CA","KY","CF","TD","CL","CN","CX","CC","CO","KM","CG","CD","CK","CR","CI","HR","CU","CW","CY","CZ","DK","DJ","DM","DO","EC","EG","SV","GQ","ER","EE","ET","FK","FO","FJ","FI","FR","GF","PF","TF","GA","GM","GE","DE","GH","GI","GR","GL","GD","GP","GU","GT","GG","GN","GW","GY","HT","HM","VA","HN","HK","HU","IS","IN","ID","IR","IQ","IE","IM","IL","IT","JM","JP","JE","JO","KZ","KE","KI","KP","KR","KW","KG","LA","LV","LB","LS","LR","LY","LI","LT","LU","MO","MK","MG","MW","MY","MV","ML","MT","MH","MQ","MR","MU","YT","MX","FM","MD","MC","MN","ME","MS","MA","MZ","MM","NA","NR","NP","NL","NC","NZ","NI","NE","NG","NU","NF","MP","NO","OM","PK","PW","PS","PA","PG","PY","PE","PH","PN","PL","PT","PR","QA","RE","RO","RU","RW","BL","SH","KN","LC","MF","PM","VC","WS","SM","ST","SA","SN","RS","SC","SL","SG","SX","SK","SI","SB","SO","ZA","GS","SS","ES","LK","SD","SR","SJ","SZ","SE","CH","SY","TW","TJ","TZ","TH","TL","TG","TK","TO","TT","TN","TR","TM","TC","TV","UG","UA","AE","GB","US","UM","UY","UZ","VU","VE","VN","VG","VI","WF","EH","YE","ZM","ZW"]),i=e=>l.has(e)},24719:(e,t,r)=>{r.d(t,{A:()=>u});var l=r(27861),i=r(61792),a=r(89154),s=r(98410),n=r(97245);let u=()=>{let e,t=(0,l.c)(5),r=(0,a.A)(),u=(0,i.n)(),o=(0,n.A)(),d=(0,s.A)()||o;return t[0]!==o||t[1]!==r||t[2]!==d||t[3]!==u?(e={productId:r,countryCode:d,currencyCode:u,marketName:o},t[0]=o,t[1]=r,t[2]=d,t[3]=u,t[4]=e):e=t[4],e}},25083:(e,t,r)=>{r.d(t,{A:()=>a});var l=r(294),i=r(79107);let a=()=>{let e=(0,i.A)(),{region:t}=(0,l.A)();return e?.marketCountry||t||"US"}},25710:(e,t,r)=>{r.d(t,{A:()=>a});var l=r(67371);let i=e=>{if(!e)return;let t=e.product,r=t?.variants?.filter(e=>null!=e&&!e?.hidden)??[];return{...t,variants:r,flags:{id:t?.id,has360Images:Number(t?.media?.all360Images?.length)>0,hasGallery:Number(t?.media?.gallery?.length)>0,hasVariants:Number(r?.length)>1,hasVariantGroups:Number(t?.variants?.filter(e=>!!e?.group).length)>0}}},a=()=>(0,l.A)(i)},31486:(e,t,r)=>{r.d(t,{A:()=>a});var l=r(25710),i=r(98278);let a=()=>{let{data:e}=(0,l.A)();return(0,i.dl)(s)||e?.id||null};function s(e){return e.selectedVariantId}},36571:(e,t,r)=>{r.d(t,{b:()=>i});var l,i=((l={}).MysteryBox="/p/mb",l)},49212:(e,t,r)=>{r.d(t,{A:()=>d});var l=r(27861),i=r(98278),a=r(12238),s=r(25710),n=r(28857),u=r(67279),o=r(63556);let d=()=>{let e,t,r=(0,l.c)(28),d=(()=>{let e,t,r=(0,l.c)(4),{data:n}=(0,s.A)();r[0]!==n?(e=(0,a.A)(n),r[0]=n,r[1]=e):e=r[1];let u=e;return r[2]!==u?(t=e=>e.defaultSize?.[u]??null,r[2]=u,r[3]=t):t=r[3],(0,i.f3)(t)})(),c=(0,o.A)(),{data:p}=(0,u.A)(),{query:S}=(0,n.A)(),{size:v}=S;p?.preferredVariant;e:{let t,l,i,a,s,n,u,o;if(!c){let t;r[0]===Symbol.for("react.memo_cache_sentinel")?(t={value:"All",source:"default"},r[0]=t):t=r[0],e=t;break e}r[1]!==c?(t=Object.values(c),r[1]=c,r[2]=t):t=r[2],r[3]!==p?.preferredVariant||r[4]!==t?(l=t.find(e=>e?.id===p?.preferredVariant),r[3]=p?.preferredVariant,r[4]=t,r[5]=l):l=r[5];let S=l,A=S?.sizeChart?.baseSize;r[6]!==v?(i={value:v,source:"query"},r[6]=v,r[7]=i):i=r[7],r[8]!==d?(a={value:d,source:"settings"},r[8]=d,r[9]=a):a=r[9],r[10]!==A?(s={value:A,source:"account"},r[10]=A,r[11]=s):s=r[11],r[12]!==i||r[13]!==a||r[14]!==s?(n=[i,a,s],r[12]=i,r[13]=a,r[14]=s,r[15]=n):n=r[15],r[16]!==n||r[17]!==c?(u=n.filter(e=>!!e&&("All"===e.value||!(!c?.[e.value]||c?.[e.value]?.hidden))),r[16]=n,r[17]=c,r[18]=u):u=r[18];let f=u;r[19]!==f?.[0]?(o=f?.[0]??{value:"All",source:"default"},r[19]=f?.[0],r[20]=o):o=r[20],e=o}let A=e;t:{let e,l=c?.[A.value]??null;if(!l){let e;r[21]!==A.source||r[22]!==A.value?(e={size:A.value,sizeSource:A.source,id:null},r[21]=A.source,r[22]=A.value,r[23]=e):e=r[23],t=e;break t}r[24]!==A.source||r[25]!==A.value||r[26]!==l.id?(e={size:A.value,sizeSource:A.source,id:l.id},r[24]=A.source,r[25]=A.value,r[26]=l.id,r[27]=e):e=r[27],t=e}return t}},63556:(e,t,r)=>{r.d(t,{A:()=>a});var l=r(67371);let i=e=>{if(!e?.product)return;let t=e.product;if(!t.variants||0===t.variants.length)return;let r=t.variants.filter(e=>null!=e&&!e.hidden);return r?.reduce((e,t)=>({...e,[t?.traits?.size??""]:t}),{})},a=()=>{let{data:e}=(0,l.A)(i);return e}},67279:(e,t,r)=>{r.d(t,{A:()=>o});var l=r(27861),i=r(24719),a=r(53544),s=r(7660);let n={query:`query getProductPreferences($id: String!) {
+  product(id: $id) {
+    preferredSizeConversion {
+      name
+      type
+    }
+    preferredVariant
+  }
+}`,queryId:"5ba898c689c0ed3e79ff8ca0c12c5eea79fd79dcf88fce4e5f7a4abd3d7975ef",name:"getProductPreferences",kind:"query"},u=e=>e?.product,o=()=>{let e,t=(0,l.c)(2),{productId:r}=(0,i.A)(),o=r??"";return t[0]!==o?(e={select:u,variables:{id:o}},t[0]=o,t[1]=e):e=t[1],(e=>{let t,r,i,u=(0,l.c)(9),o=e?.variables;if(u[0]!==o)t=o?["getProductPreferences",o]:["getProductPreferences"],u[0]=o,u[1]=t;else t=u[1];return u[2]!==e?.context||u[3]!==e?.requestOptions?(r=t=>{let r,{signal:l,queryKey:i}=t,[,a]=i;return r={variables:a,options:e?.requestOptions,context:e?.context,signal:l},(0,s.Z)({operation:{...n,variables:r?.variables},options:r?.options,context:r?.context,signal:r?.signal})},u[2]=e?.context,u[3]=e?.requestOptions,u[4]=r):r=u[4],u[5]!==e||u[6]!==t||u[7]!==r?(i={queryKey:t,queryFn:r,...e},u[5]=e,u[6]=t,u[7]=r,u[8]=i):i=u[8],(0,a.I)(i)})(e)}},67371:(e,t,r)=>{r.d(t,{A:()=>u});var l=r(27861),i=r(24719),a=r(53544),s=r(7660);let n={query:`query GetProduct($id: String!, $skipBreadcrumbs: Boolean!) {
+  product(id: $id) {
+    sizeDescriptor
+    urlKey
+    id
+    productCategory
+    primaryCategory
+    primaryTitle
+    secondaryTitle
+    brand
+    title
+    model
+    description
+    contentGroup
+    listingType
+    deleted
+    gender
+    browseVerticals
+    categories {
+      default {
+        alias
+        level
+      }
+    }
+    conditions {
+      verified {
+        alias
+        value
+      }
+    }
+    condition
+    styleId
+    editionType
+    sizeAllDescriptor
+    availableSizeConversions {
+      name
+      type
+    }
+    defaultSizeConversion {
+      name
+      type
+    }
+    media {
+      all360Images
+      gallery
+      smallImageUrl
+      thumbUrl
+      imageUrl
+      videos {
+        video {
+          url
+          alt
+        }
+        thumbnail {
+          url
+          alt
+        }
+      }
+      verticalImages
+    }
+    hazardousMaterial {
+      lithiumIonBucket
+    }
+    tags
+    traits {
+      name
+      value
+      visible
+      format
+    }
+    merchandising {
+      title
+      subtitle
+      image {
+        alt
+        url
+      }
+      body
+      trackingEvent
+      link {
+        title
+        url
+        urlType
+      }
+    }
+    variants {
+      id
+      hidden
+      group {
+        shortCode
+      }
+      traits {
+        size
+      }
+      gtins {
+        type
+        identifier
+      }
+      sizeChart {
+        baseSize
+        baseType
+        displayOptions {
+          size
+          type
+        }
+      }
+    }
+    breadcrumbs @skip(if: $skipBreadcrumbs) {
+      name
+      url
+      level
+    }
+    brands {
+      default {
+        alias
+        name
+      }
+    }
+    categories {
+      default {
+        alias
+        value
+        level
+      }
+    }
+    seo {
+      meta {
+        name
+        value
+      }
+    }
+  }
+}`,queryId:"f825301bd1b0d2b70acb3dd2540f06ccb67b9a0bc32a0c82a66922682ac5f4d9",name:"GetProduct",kind:"query"},u=e=>{let t,r,u=(0,l.c)(6),{productId:o}=(0,i.A)(),d=o??"";u[0]!==d?(t={id:d,skipBreadcrumbs:!1},u[0]=d,u[1]=t):t=u[1];let c=t,p=!!o;return u[2]!==e||u[3]!==p||u[4]!==c?(r={variables:c,enabled:p,select:e},u[2]=e,u[3]=p,u[4]=c,u[5]=r):r=u[5],(e=>{let t,r,i,u=(0,l.c)(9),o=e?.variables;if(u[0]!==o)t=o?["GetProduct",o]:["GetProduct"],u[0]=o,u[1]=t;else t=u[1];return u[2]!==e?.context||u[3]!==e?.requestOptions?(r=t=>{let r,{signal:l,queryKey:i}=t,[,a]=i;return r={variables:a,options:e?.requestOptions,context:e?.context,signal:l},(0,s.Z)({operation:{...n,variables:r?.variables},options:r?.options,context:r?.context,signal:r?.signal})},u[2]=e?.context,u[3]=e?.requestOptions,u[4]=r):r=u[4],u[5]!==e||u[6]!==t||u[7]!==r?(i={queryKey:t,queryFn:r,...e},u[5]=e,u[6]=t,u[7]=r,u[8]=i):i=u[8],(0,a.I)(i)})(r)}},67580:(e,t,r)=>{r.d(t,{A:()=>d});var l=r(41554),i=r(27861),a=r(36439),s=r(31486),n=r(98278),u=r(49212);let o=e=>{let t,r,u,o=(0,i.c)(10),{children:d,variantData:p}=e,S=(0,s.A)(),v=(0,n.dl)(c);o[0]!==S||o[1]!==v||o[2]!==p.id||o[3]!==p.size||o[4]!==p.sizeSource?(t=()=>{p.id!==S&&v(p.size,p.sizeSource,p.id,!1)},o[0]=S,o[1]=v,o[2]=p.id,o[3]=p.size,o[4]=p.sizeSource,o[5]=t):t=o[5];let A=p?.id;return o[6]!==A?(r=[A],o[6]=A,o[7]=r):r=o[7],(0,a.useEffect)(t,r),o[8]!==d?(u=(0,l.Y)(l.FK,{children:d}),o[8]=d,o[9]=u):u=o[9],u},d=(0,a.memo)(e=>{let t,r,a,s=(0,i.c)(10),{children:d}=e,c=(0,u.A)(),p=c?.sizeSource,S=c?.size,v=c?.id;return s[0]!==p||s[1]!==S||s[2]!==v?(t=(0,n.dC)({selectedSizeSource:p,selectedSize:S,selectedVariantId:v,showFlexAsk:!1}),s[0]=p,s[1]=S,s[2]=v,s[3]=t):t=s[3],s[4]!==d||s[5]!==c?(r=(0,l.Y)(o,{variantData:c,children:d}),s[4]=d,s[5]=c,s[6]=r):r=s[6],s[7]!==t||s[8]!==r?(a=(0,l.Y)(n.Rc,{createStore:t,children:r}),s[7]=t,s[8]=r,s[9]=a):a=s[9],a});function c(e){return e.reset}},89154:(e,t,r)=>{r.d(t,{A:()=>o});var l=r(27861),i=r(85098),a=r(39071),s=r(36571);let n=Object.values(a.Y).filter(e=>e.active&&"en"!==e.value).map(e=>e.url),u=["+",".html",".jpg",".png",".php",".json",".js"],o=()=>{let e,t=(0,l.c)(2),r=(0,i.usePathname)();return t[0]!==r?(e=r?(e=>{let t=!1,r=e.split("/").filter(e=>!!e&&""!==e&&(!(!t&&n.includes(e))||(t=!0,!1)));if(r.includes("listings")){let e=r.indexOf("listings");e>-1&&r.splice(e)}let l=s.b.MysteryBox.split("/").filter(Boolean);if(r.length>l.length&&l.every((e,t)=>r[t]===e)&&r.splice(0,l.length),1!==r.length)return null;let i=r[0].split("?")[0];return!(i.split("-").length-1)||u.some(e=>i.includes(e))?null:i})(r):null,t[0]=r,t[1]=e):e=t[1],e}},97245:(e,t,r)=>{r.d(t,{A:()=>a});var l=r(294),i=r(79107);let a=()=>{let e=(0,i.A)(),{region:t}=(0,l.A)();return e?.marketName??t??"US"}},98278:(e,t,r)=>{r.d(t,{Rc:()=>c,dC:()=>d,dl:()=>p,f3:()=>o});var l=r(75479),i=r(63963),a=r(89700),s=r(41103),n=r(2651),u=r(99677);let o=(0,l.v)()((0,a.lt)((0,s.D)((0,a.Zr)((e,t)=>({defaultSize:{},setDefaultSize:(r,l)=>{let i=t().defaultSize;return e(()=>({defaultSize:{...i,[r]:l}}))},viewerContext:null,setViewerContext:t=>{e(()=>({viewerContext:t}))},nonPersistentViewerContext:null,setNonPersistentViewerContext(t){e(()=>({nonPersistentViewerContext:t}))}}),{name:"stockx-product-user-settings",skipHydration:!1,partialize:e=>({viewerContext:e.viewerContext,defaultSize:e.defaultSize})})),{enabled:!!window.__REDUX_DEVTOOLS_EXTENSION__&&"production"!==n.A.ENVIRONMENT,name:"StockXProductUserSettings"})),d=({selectedSize:e,selectedSizeSource:t,selectedVariantId:r,showFlexAsk:l})=>()=>(0,i.y)()(i=>({selectedSize:e,selectedVariantId:r,selectedSizeSource:t,showFlexAsk:l,setShowFlexAsk(e){i(()=>({showFlexAsk:e}))},setSelectedSize:(e,t,r)=>{i(()=>({selectedSizeSource:"state",selectedSize:e,selectedVariantId:t})),o.getState().setDefaultSize(r,e)},reset(e,t,r,l){i(()=>({selectedSize:e,selectedSizeSource:t,selectedVariantId:r,showFlexAsk:l}))}})),{Provider:c,useStore:p}=(0,u.q)()},98410:(e,t,r)=>{r.d(t,{A:()=>n});var l=r(27861),i=r(85098),a=r(15909),s=r(25083);let n=()=>{let e,t=(0,l.c)(2),r=(0,i.useSearchParams)(),n=(0,s.A)();if(t[0]!==r){let l=r?.get("country")??null;e=(0,a.A)(l)&&l,t[0]=r,t[1]=e}else e=t[1];return e||n||"US"}}}]);

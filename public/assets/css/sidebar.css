@@ -1,0 +1,193 @@
+/* =========================================
+   1. KHUNG SIDEBAR - ĐEN SÂU MATTE
+   ========================================= */
+aside.sidebar {
+    width: 260px;
+    min-width: 260px;
+    max-width: 260px;
+    height: 100vh;
+    background-color: #0b0e11;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    padding: 30px 20px;
+    position: sticky;
+    top: 0;
+    box-sizing: border-box;
+    border-right: 1px solid #1a1d24;
+}
+
+.logo {
+    font-weight: bold;
+    font-size: 1.4rem;
+    letter-spacing: 2px;
+    margin-bottom: 40px;
+    line-height: 1.2;
+}
+
+/* =========================================
+   2. PHẦN MENU CHÍNH VÀ SCROLLBAR
+   ========================================= */
+.menu {
+    flex-grow: 1;
+    overflow-y: auto; /* Cho phép cuộn khi menu quá dài */
+    overflow-x: hidden;
+}
+
+/* Ẩn thanh cuộn mặc định (nếu muốn sidebar trông đẹp hơn) */
+.menu::-webkit-scrollbar { width: 6px; }
+.menu::-webkit-scrollbar-track { background: transparent; }
+.menu::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+.menu-title {
+    font-size: 11px;
+    opacity: 0.5;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}
+
+/* =========================================
+   3. STYLING CHO CÁC MỤC (LI) VÀ LINK (A)
+   ========================================= */
+.menu ul, .menu ul ul {
+    padding: 0 !important;
+    margin: 0 !important;
+    list-style: none !important;
+}
+
+.menu ul li {
+    width: 100%;
+    margin-bottom: 15px !important;
+}
+
+.menu ul li a {
+    display: block !important;
+    padding: 12px 15px !important;
+    border-radius: 8px;
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    color: rgba(255, 255, 255, 0.5) !important; /* Chữ mặc định mờ hơn tí */
+    text-decoration: none !important;
+    text-align: left !important;
+    border: 1px solid transparent;
+}
+
+/* Hiệu ứng Hover */
+.menu ul li a:hover {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+    color: #ffffff !important;
+    padding-left: 20px !important;
+}
+
+/* Trạng thái Active cho mục chính */
+.menu ul li.active > a {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    color: #ffffff !important;
+    font-weight: bold;
+    border: 1px solid rgba(165, 165, 165, 0.3) !important;
+    box-shadow: 0 0 15px rgba(122, 122, 122, 0.15), inset 0 0 5px rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(5px);
+}
+
+/* Style riêng cho các link con trong Dropdown Phiếu Kho */
+a.ticket-link {
+    font-size: 0.9em;
+    padding: 8px 15px !important;
+}
+a.ticket-active {
+    color: #0d6efd !important;
+    font-weight: bold;
+}
+
+/* =========================================
+   4. NÚT ĐĂNG XUẤT
+   ========================================= */
+#logout-form {
+    margin-top: auto;
+    padding-bottom: 15px;
+}
+
+.logout {
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    background: transparent;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.logout:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.8) !important;
+    color: #ffffff !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+/* =========================================
+   5. AI CHATBOT CONTAINER STYLES
+   ========================================= */
+#ai-chat-container {
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    width: 380px;
+    height: 500px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transform-origin: bottom right;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+#ai-chat-container.ai-chat-minimized {
+    transform: scale(0);
+    opacity: 0;
+    pointer-events: none;
+}
+
+#ai-chat-body {
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background-color: #fcfcfc;
+}
+
+.user-msg, .bot-msg {
+    max-width: 85%;
+    padding: 10px 14px;
+    border-radius: 18px;
+    font-size: 13.5px;
+    line-height: 1.5;
+}
+
+.user-msg {
+    align-self: flex-end;
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+.bot-msg {
+    align-self: flex-start;
+    background-color: white;
+    color: #2c3e50;
+    border: 1px solid #eee;
+    border-bottom-left-radius: 4px;
+}
+
+.animate-pulse { animation: pulse-green 2s infinite; }
+@keyframes pulse-green {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(40, 167, 69, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+}
+
+.typing { font-style: italic; color: #999; font-size: 12px; }
