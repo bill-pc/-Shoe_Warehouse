@@ -215,14 +215,25 @@ async function executeImportScan() {
 function renderImportPostScan() {
     const container = document.getElementById('import_post_scan_area');
     container.innerHTML = importScannedData.map((item, idx) => {
-        let isDoneClass = item.is_done ? 'opacity-25' : ''; // Làm xám nếu đã nhập đủ các biến thể của ảnh này
+        let isDoneClass = item.is_done ? 'opacity-25' : '';
         let activeClass = (idx === activeScannedIndex) ? 'border-warning shadow' : 'border-secondary';
-        return `<img src="${URL.createObjectURL(importSelectedFiles[idx])}" 
-                     class="rounded border border-2 cursor-pointer ${activeClass} ${isDoneClass}" 
-                     style="width: 80px; height: 80px; object-fit:contain;" 
-                     onclick="processAIResult(${idx})">`;
+
+        // Nếu đã nhập đủ (is_done = true), thêm viền xanh lá cây
+        if (item.is_done) {
+            activeClass = 'border-success shadow-lg';
+        }
+
+        // BẠN HÃY COPY TOÀN BỘ KHỐI RETURN NÀY THAY CHO KHỐI RETURN HIỆN TẠI:
+        return `<div class="d-flex flex-column align-items-center me-2 mb-2">
+                    <img src="${URL.createObjectURL(importSelectedFiles[idx])}" 
+                         class="rounded border-3 cursor-pointer ${activeClass} ${isDoneClass}" 
+                         style="width: 80px; height: 80px; object-fit:contain;" 
+                         onclick="processAIResult(${idx})">
+                    <span id="scan_sku_${idx}" class=" fw-bold mt-1" style="font-size: 20px;"></span>
+                </div>`;
     }).join('');
 }
+
 
 
 // =========================================================================
@@ -510,11 +521,13 @@ function updateImportSizeDropdown() {
 
     sizeDropdown.disabled = false;
     availableSizes.forEach(item => {
-        sizeDropdown.innerHTML += `<option value="${item.size}" data-detail-id="${item.detail_id}" data-variant-id="${item.variant_id}" data-qty="${item.quantity}">Size ${item.size}</option>`;
+        // ĐÃ THÊM data-sku="${item.sku || ''}" VÀO THẺ OPTION DƯỚI ĐÂY:
+        sizeDropdown.innerHTML += `<option value="${item.size}" data-detail-id="${item.detail_id}" data-variant-id="${item.variant_id}" data-qty="${item.quantity}" data-sku="${item.sku || ''}">Size ${item.size}</option>`;
 
         let row = document.getElementById(`import_row_${item.variant_id}`);
         if (row) row.classList.add('bg-info', 'bg-opacity-25', 'border-info');
     });
+
 
     // AUTO-FILL: Khi đã chọn Màu, tự động chọn Size đầu tiên và tự động Fill số lượng + Phân bổ kệ luôn
     if (availableSizes.length >= 1) {
@@ -537,6 +550,23 @@ function autoFillImportQty() {
     document.getElementById('import_actual_qty').value = expectedQty;
     document.getElementById('import_detail_id').value = selectedOption.getAttribute('data-detail-id');
     document.getElementById('import_variant_id').value = targetVariantId;
+    // THÊM ĐOẠN NÀY: Hiển thị mã SKU tương ứng lên màn hình cạnh tấm ảnh
+    const skuCode = selectedOption.getAttribute('data-sku');
+    if (activeScannedIndex !== -1) {
+        let skuSpan = document.getElementById(`scan_sku_${activeScannedIndex}`);
+        if (skuSpan) {
+            // SỬA DÒNG NÀY: Hiện rõ cảnh báo nếu SKU bị trống trong Database
+            if (skuCode && skuCode.trim() !== '') {
+                skuSpan.innerText = 'SKU: ' + skuCode;
+                skuSpan.className = 'fw-bold mt-1'; // Màu vàng
+            } else {
+                skuSpan.innerText = 'SKU: Đang trống trong Database';
+                skuSpan.className = 'text-danger small fw-bold mt-1'; // Màu đỏ cảnh báo
+            }
+        }
+    }
+
+
 
     if (window.currentMatchedItems) {
         window.currentMatchedItems.forEach(item => {
@@ -605,34 +635,34 @@ async function loadPutawayLocations(variantId) {
 
         const recommendedAllocations = normalizeRecommendations(serverRecommendations);
 
-// Khởi tạo số lượng cần phân bổ còn lại (Ví dụ: 3 đôi)
-let remainingToFill = Math.max(0, quantity);
+        // Khởi tạo số lượng cần phân bổ còn lại (Ví dụ: 3 đôi)
+        let remainingToFill = Math.max(0, quantity);
 
-const renderSlot = (slot, isCurrent, isFirst = false) => {
-    let mark = isCurrent ? `<span class="text-warning small">(Đang có: ${slot.var_count})</span>` : '';
-    let key = `${slot.shelf_id}_${slot.tier}_${slot.slot}`;
-    const slotCode = slot.location_code || slot.slot_code || `${slot.shelf_name}_${slot.tier}-${slot.slot}`;
+        const renderSlot = (slot, isCurrent, isFirst = false) => {
+            let mark = isCurrent ? `<span class="text-warning small">(Đang có: ${slot.var_count})</span>` : '';
+            let key = `${slot.shelf_id}_${slot.tier}_${slot.slot}`;
+            const slotCode = slot.location_code || slot.slot_code || `${slot.shelf_name}_${slot.tier}-${slot.slot}`;
 
-    const availSpace = Math.max(0, parseInt(slot.available, 10) || 0);
+            const availSpace = Math.max(0, parseInt(slot.available, 10) || 0);
 
-    let prefillQty = 0;
+            let prefillQty = 0;
 
-    // Ưu tiên 1: Lấy đúng số lượng đã lưu nháp trước đó (nếu có)
-    if (savedAllocations[key] !== undefined && savedAllocations[key] > 0) {
-        prefillQty = Math.min(savedAllocations[key], availSpace);
-        remainingToFill -= prefillQty;
-    } 
-    // Ưu tiên 2: Autofill từ số lượng còn lại cho đến khi remainingToFill = 0
-    else if (remainingToFill > 0 && availSpace > 0) {
-        prefillQty = Math.min(remainingToFill, availSpace);
-        remainingToFill -= prefillQty; // GIẢM TRỪ NGAY LẬP TỨC ĐỂ CÁC Ô SAU KHÔNG BỊ FILL THÊM
-    }
+            // Ưu tiên 1: Lấy đúng số lượng đã lưu nháp trước đó (nếu có)
+            if (savedAllocations[key] !== undefined && savedAllocations[key] > 0) {
+                prefillQty = Math.min(savedAllocations[key], availSpace);
+                remainingToFill -= prefillQty;
+            }
+            // Ưu tiên 2: Autofill từ số lượng còn lại cho đến khi remainingToFill = 0
+            else if (remainingToFill > 0 && availSpace > 0) {
+                prefillQty = Math.min(remainingToFill, availSpace);
+                remainingToFill -= prefillQty; // GIẢM TRỪ NGAY LẬP TỨC ĐỂ CÁC Ô SAU KHÔNG BỊ FILL THÊM
+            }
 
-    let bestBadge = (isFirst && prefillQty > 0) 
-        ? `<span class="badge bg-success ms-1" style="font-size: 0.65rem;">⭐ Gợi ý tốt nhất</span>` 
-        : '';
+            let bestBadge = (isFirst && prefillQty > 0)
+                ? `<span class="badge bg-success ms-1" style="font-size: 0.65rem;">⭐ Gợi ý tốt nhất</span>`
+                : '';
 
-    return `
+            return `
     <div class="d-flex justify-content-between align-items-center bg-black p-2 rounded mb-2 border border-secondary putaway-row transition-all">
         <span class="text-white fw-bold small">
             Ô ${slotCode}
@@ -653,14 +683,14 @@ const renderSlot = (slot, isCurrent, isFirst = false) => {
                value="${prefillQty}" 
                oninput="validatePutawayTotal()">
     </div>`;
-};
+        };
 
-        const currentHtml = currentSlots.length > 0 
-            ? currentSlots.map((s, idx) => renderSlot(s, true, idx === 0)).join('') 
+        const currentHtml = currentSlots.length > 0
+            ? currentSlots.map((s, idx) => renderSlot(s, true, idx === 0)).join('')
             : '<div class="small text-white-50">Không có kệ nào đang chứa sẵn mẫu này.</div>';
 
-        const availableHtml = availableSlots.length > 0 
-            ? availableSlots.map((s, idx) => renderSlot(s, false, currentSlots.length === 0 && idx === 0)).join('') 
+        const availableHtml = availableSlots.length > 0
+            ? availableSlots.map((s, idx) => renderSlot(s, false, currentSlots.length === 0 && idx === 0)).join('')
             : '<div class="small text-danger">Kho đã đầy, không còn kệ trống!</div>';
 
         // Tính tổng số lượng đã được phân bổ vào các input
@@ -932,15 +962,15 @@ function editImportItem(variantId) {
     const colorDropdown = document.getElementById('import_color');
     const sizeDropdown = document.getElementById('import_size');
     // Gán sự kiện khi chọn Màu -> Tự cập nhật Size và Gợi ý Kệ
-colorDropdown.onchange = function() {
-    updateImportSizeDropdown();
-};
+    colorDropdown.onchange = function () {
+        updateImportSizeDropdown();
+    };
 
-// Gán sự kiện khi chọn Size -> Tự điền số lượng và Gợi ý Kệ
-sizeDropdown.onchange = function() {
-    autoFillImportQty();
-};
-    
+    // Gán sự kiện khi chọn Size -> Tự điền số lượng và Gợi ý Kệ
+    sizeDropdown.onchange = function () {
+        autoFillImportQty();
+    };
+
     colorDropdown.innerHTML = `<option value="${item.color}">${item.color}</option>`;
     sizeDropdown.innerHTML = `<option value="${item.size}" data-detail-id="${item.detail_id}" data-variant-id="${item.variant_id}" data-qty="${item.quantity}">Size ${item.size}</option>`;
     sizeDropdown.disabled = false;
