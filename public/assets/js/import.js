@@ -635,34 +635,35 @@ async function loadPutawayLocations(variantId) {
 
         const recommendedAllocations = normalizeRecommendations(serverRecommendations);
 
-        // Khởi tạo số lượng cần phân bổ còn lại (Ví dụ: 3 đôi)
-        let remainingToFill = Math.max(0, quantity);
+ // Khởi tạo số lượng cần phân bổ còn lại
+let remainingToFill = Math.max(0, quantity);
 
-        const renderSlot = (slot, isCurrent, isFirst = false) => {
-            let mark = isCurrent ? `<span class="text-warning small">(Đang có: ${slot.var_count})</span>` : '';
-            let key = `${slot.shelf_id}_${slot.tier}_${slot.slot}`;
-            const slotCode = slot.location_code || slot.slot_code || `${slot.shelf_name}_${slot.tier}-${slot.slot}`;
+const renderSlot = (slot, isCurrent, isFirst = false) => {
+    let mark = isCurrent ? `<span class="text-warning small">(Đang có: ${slot.var_count})</span>` : '';
+    let key = `${slot.shelf_id}_${slot.tier}_${slot.slot}`;
+    const slotCode = slot.location_code || slot.slot_code || `${slot.shelf_name}_${slot.tier}-${slot.slot}`;
 
-            const availSpace = Math.max(0, parseInt(slot.available, 10) || 0);
+    // Sức chứa trống thực tế tối đa của ô này
+    const availSpace = Math.max(0, parseInt(slot.available, 10) || 0);
 
-            let prefillQty = 0;
+    let prefillQty = 0;
 
-            // Ưu tiên 1: Lấy đúng số lượng đã lưu nháp trước đó (nếu có)
-            if (savedAllocations[key] !== undefined && savedAllocations[key] > 0) {
-                prefillQty = Math.min(savedAllocations[key], availSpace);
-                remainingToFill -= prefillQty;
-            }
-            // Ưu tiên 2: Autofill từ số lượng còn lại cho đến khi remainingToFill = 0
-            else if (remainingToFill > 0 && availSpace > 0) {
-                prefillQty = Math.min(remainingToFill, availSpace);
-                remainingToFill -= prefillQty; // GIẢM TRỪ NGAY LẬP TỨC ĐỂ CÁC Ô SAU KHÔNG BỊ FILL THÊM
-            }
+    // Ưu tiên 1: Lấy đúng số lượng đã lưu nháp trước đó (nếu có)
+    if (savedAllocations[key] !== undefined && savedAllocations[key] > 0) {
+        prefillQty = Math.min(savedAllocations[key], availSpace);
+        remainingToFill -= prefillQty;
+    }
+    // Ưu tiên 2: Autofill từ số lượng còn lại cho đến khi remainingToFill = 0
+    else if (remainingToFill > 0 && availSpace > 0) {
+        prefillQty = Math.min(remainingToFill, availSpace);
+        remainingToFill -= prefillQty; // Giảm trừ ngay để các ô sau không bị fill thừa
+    }
 
-            let bestBadge = (isFirst && prefillQty > 0)
-                ? `<span class="badge bg-success ms-1" style="font-size: 0.65rem;">⭐ Gợi ý tốt nhất</span>`
-                : '';
+    let bestBadge = (isFirst && prefillQty > 0)
+        ? `<span class="badge bg-success ms-1" style="font-size: 0.65rem;">⭐ Gợi ý tốt nhất</span>`
+        : '';
 
-            return `
+    return `
     <div class="d-flex justify-content-between align-items-center bg-black p-2 rounded mb-2 border border-secondary putaway-row transition-all">
         <span class="text-white fw-bold small">
             Ô ${slotCode}
@@ -678,12 +679,12 @@ async function loadPutawayLocations(variantId) {
                data-tier="${slot.tier}" 
                data-slot="${slot.slot}" 
                data-location-code="${slotCode}"
-               max="${Math.max(0, availSpace + prefillQty)}" 
+               max="${availSpace}" 
                min="0" 
                value="${prefillQty}" 
                oninput="validatePutawayTotal()">
     </div>`;
-        };
+};
 
         const currentHtml = currentSlots.length > 0
             ? currentSlots.map((s, idx) => renderSlot(s, true, idx === 0)).join('')
