@@ -1,3 +1,4 @@
+
 // =========================================================
 // LOGIC NHẬP KHO AI (THEO PHIẾU CHỈ ĐỊNH & BẢNG TẠM)
 // =========================================================
@@ -8,6 +9,9 @@ let importTicketItems = [];
 let importScannedData = [];
 let importSelectedFiles = [];
 let activeScannedIndex = -1;
+// Ngưỡng % nhận diện lấy từ config/PercentMatching.php (có fallback mặc định)
+const importMinScore = (window.AI_MATCHING && window.AI_MATCHING.min_similarity !== undefined) ? window.AI_MATCHING.min_similarity : 80;
+const importHighScore = (window.AI_MATCHING && window.AI_MATCHING.high_similarity !== undefined) ? window.AI_MATCHING.high_similarity : 95;
 
 document.getElementById('addProductModal').addEventListener('show.bs.modal', loadMyImportTickets);
 
@@ -271,8 +275,12 @@ function processAIResult(index) {
     const topMatch = matches[0];
     const topScore = getNormalizedScore(topMatch);
 
-    // Dưới 80% -> Từ chối
-    if (topScore < 80) {
+    // [SỬA] Đọc ngưỡng từ PercentMatching.php (qua window.AI_MATCHING truyền từ topbar.php, đã ở dạng %)
+    const minScore = importMinScore;
+    const highScore = importHighScore;
+
+    // Dưới ngưỡng tối thiểu (config/PercentMatching.php) -> Từ chối
+    if (topScore < minScore) {
         alert(`Tỉ lệ khớp quá thấp (${topScore.toFixed(1)}%). Vui lòng chụp lại ảnh rõ nét hơn!`);
         return;
     }
@@ -282,12 +290,12 @@ function processAIResult(index) {
     console.log("Số lượng mẫu tìm thấy:", matches.length);
     console.log("Điểm cao nhất (topScore):", topScore);
 
-    // Nếu có từ 2 mẫu trở lên HOẶC điểm thấp hơn 90% -> Ép buộc hiện khung màu vàng
-    if (matches.length > 1 || topScore < 90) {
+    // [SỬA] Nếu có từ 2 mẫu trở lên HOẶC điểm thấp hơn ngưỡng khớp hoàn toàn (high_similarity) -> Ép buộc hiện khung màu vàng
+    if (matches.length > 1 || topScore < highScore) {
         console.log("👉 ĐIỀU KIỆN ĐÚNG: Đang mở khung Phân Vân màu vàng!");
         renderSuggestionDropdown(matches, aiItem.temp_image);
     } else {
-        console.log("👉 ĐIỀU KIỆN ĐÚNG: Đã thỏa mãn >= 90%, cho phép Auto-Match!");
+        console.log(`👉 ĐIỀU KIỆN ĐÚNG: Đã thỏa mãn >= ${highScore}%, cho phép Auto-Match!`);
         let isSuccess = autoProcessMatch(topMatch, aiItem.temp_image);
         if (isSuccess) alert(`Thành công! Khớp ảnh kho (Gốc: ${topScore.toFixed(1)}%)`);
     }
@@ -374,7 +382,8 @@ function autoProcessMatch(matchData, tempImage) {
 
 // 4.2 HÀM TẠO MENU DROPDOWN VÀ SHOW TOÀN BỘ ẢNH BÊN TRONG DROPDOWN
 function renderSuggestionDropdown(matches, tempImage) {
-    let validMatches = matches.filter(m => getNormalizedScore(m) >= 80);
+    // [SỬA] Lọc theo ngưỡng tối thiểu từ config/PercentMatching.php
+    let validMatches = matches.filter(m => getNormalizedScore(m) >= importMinScore);
     validMatches.sort((a, b) => getNormalizedScore(b) - getNormalizedScore(a));
 
     let container = document.getElementById('import_suggestion_container');
@@ -390,13 +399,13 @@ function renderSuggestionDropdown(matches, tempImage) {
 
     validMatches.forEach((m, idx) => {
         let score = getNormalizedScore(m).toFixed(1);
-        let mBrand = (m.brand || "").toLowerCase();
-        let mName = (m.product_name || m.model || m.name || "").toLowerCase();
 
-        let inTicket = importTicketItems.some(ti => (ti.brand || "").toLowerCase() === mBrand && (ti.product_name || "").toLowerCase() === mName);
+        // [SỬA] Dùng chung isSameProduct để kiểm tra mẫu có trong phiếu
+        let inTicket = importTicketItems.some(ti => isSameProduct(ti, m));
         let mark = inTicket ? "⭐ CÓ TRONG PHIẾU" : "Ngoài phiếu";
 
-        let cleanObj = { brand: m.brand, product_name: m.product_name || m.model || m.name, product_image: m.product_image || 'default_shoe.png' };
+        // [SỬA] Giữ lại product_id để isSameProduct so khớp theo ID khi xác nhận
+        let cleanObj = { product_id: m.product_id, brand: m.brand, product_name: m.product_name || m.model || m.name, product_image: m.product_image || 'default_shoe.png' };
         let valStr = JSON.stringify(cleanObj).replace(/'/g, "&#39;");
         let displayText = `[${score}%] - ${m.brand} ${cleanObj.product_name}`;
 
@@ -635,35 +644,34 @@ async function loadPutawayLocations(variantId) {
 
         const recommendedAllocations = normalizeRecommendations(serverRecommendations);
 
- // Khởi tạo số lượng cần phân bổ còn lại
-let remainingToFill = Math.max(0, quantity);
+        // Khởi tạo số lượng cần phân bổ còn lại (Ví dụ: 3 đôi)
+        let remainingToFill = Math.max(0, quantity);
 
-const renderSlot = (slot, isCurrent, isFirst = false) => {
-    let mark = isCurrent ? `<span class="text-warning small">(Đang có: ${slot.var_count})</span>` : '';
-    let key = `${slot.shelf_id}_${slot.tier}_${slot.slot}`;
-    const slotCode = slot.location_code || slot.slot_code || `${slot.shelf_name}_${slot.tier}-${slot.slot}`;
+        const renderSlot = (slot, isCurrent, isFirst = false) => {
+            let mark = isCurrent ? `<span class="text-warning small">(Đang có: ${slot.var_count})</span>` : '';
+            let key = `${slot.shelf_id}_${slot.tier}_${slot.slot}`;
+            const slotCode = slot.location_code || slot.slot_code || `${slot.shelf_name}_${slot.tier}-${slot.slot}`;
 
-    // Sức chứa trống thực tế tối đa của ô này
-    const availSpace = Math.max(0, parseInt(slot.available, 10) || 0);
+            const availSpace = Math.max(0, parseInt(slot.available, 10) || 0);
 
-    let prefillQty = 0;
+            let prefillQty = 0;
 
-    // Ưu tiên 1: Lấy đúng số lượng đã lưu nháp trước đó (nếu có)
-    if (savedAllocations[key] !== undefined && savedAllocations[key] > 0) {
-        prefillQty = Math.min(savedAllocations[key], availSpace);
-        remainingToFill -= prefillQty;
-    }
-    // Ưu tiên 2: Autofill từ số lượng còn lại cho đến khi remainingToFill = 0
-    else if (remainingToFill > 0 && availSpace > 0) {
-        prefillQty = Math.min(remainingToFill, availSpace);
-        remainingToFill -= prefillQty; // Giảm trừ ngay để các ô sau không bị fill thừa
-    }
+            // Ưu tiên 1: Lấy đúng số lượng đã lưu nháp trước đó (nếu có)
+            if (savedAllocations[key] !== undefined && savedAllocations[key] > 0) {
+                prefillQty = Math.min(savedAllocations[key], availSpace);
+                remainingToFill -= prefillQty;
+            }
+            // Ưu tiên 2: Autofill từ số lượng còn lại cho đến khi remainingToFill = 0
+            else if (remainingToFill > 0 && availSpace > 0) {
+                prefillQty = Math.min(remainingToFill, availSpace);
+                remainingToFill -= prefillQty; // GIẢM TRỪ NGAY LẬP TỨC ĐỂ CÁC Ô SAU KHÔNG BỊ FILL THÊM
+            }
 
-    let bestBadge = (isFirst && prefillQty > 0)
-        ? `<span class="badge bg-success ms-1" style="font-size: 0.65rem;">⭐ Gợi ý tốt nhất</span>`
-        : '';
+            let bestBadge = (isFirst && prefillQty > 0)
+                ? `<span class="badge bg-success ms-1" style="font-size: 0.65rem;">⭐ Gợi ý tốt nhất</span>`
+                : '';
 
-    return `
+            return `
     <div class="d-flex justify-content-between align-items-center bg-black p-2 rounded mb-2 border border-secondary putaway-row transition-all">
         <span class="text-white fw-bold small">
             Ô ${slotCode}
@@ -679,12 +687,12 @@ const renderSlot = (slot, isCurrent, isFirst = false) => {
                data-tier="${slot.tier}" 
                data-slot="${slot.slot}" 
                data-location-code="${slotCode}"
-               max="${availSpace}" 
+               max="${Math.max(0, availSpace + prefillQty)}" 
                min="0" 
                value="${prefillQty}" 
                oninput="validatePutawayTotal()">
     </div>`;
-};
+        };
 
         const currentHtml = currentSlots.length > 0
             ? currentSlots.map((s, idx) => renderSlot(s, true, idx === 0)).join('')

@@ -292,6 +292,10 @@ class ProductModel
         if (file_exists($configPath)) {
             $matchingConfig = require $configPath;
             $minSimilarity = isset($matchingConfig['min_similarity']) ? (float)$matchingConfig['min_similarity'] : 0.80;
+            // Chuẩn hóa: nếu nhập dạng phần trăm (ví dụ 80) thì chuyển thành 0.80
+            if ($minSimilarity > 1) {
+                $minSimilarity = $minSimilarity / 100;
+            }
         }
 
         // Định dạng lại mảng Vector cho PostgreSQL

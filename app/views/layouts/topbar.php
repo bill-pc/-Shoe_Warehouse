@@ -472,6 +472,20 @@ $allCategories = $cModel->getAll();
     });
 </script>
 <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+<?php 
+$__matchCfgPath = __DIR__ . '/../../../config/PercentMatching.php';
+$__matchCfg = file_exists($__matchCfgPath) ? require $__matchCfgPath : [];
+$__rawMin = isset($__matchCfg['min_similarity']) ? (float)$__matchCfg['min_similarity'] : 0.80;
+$__rawHigh = isset($__matchCfg['high_similarity']) ? (float)$__matchCfg['high_similarity'] : 0.95;
+$__minPct = $__rawMin > 1 ? $__rawMin : $__rawMin * 100;
+$__highPct = $__rawHigh > 1 ? $__rawHigh : $__rawHigh * 100;
+?>
+<script>
+    window.AI_MATCHING = {
+        min_similarity: <?= $__minPct ?>,
+        high_similarity: <?= $__highPct ?>
+    };
+</script>
 <script src="assets/js/import.js"></script>
 <script src="assets/js/export.js"></script>
 <script src="assets/js/profile.js"></script>

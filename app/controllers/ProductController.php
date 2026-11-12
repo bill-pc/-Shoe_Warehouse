@@ -524,6 +524,9 @@ class ProductController
                 $matchingConfig = require $configPath;
                 $minSim = isset($matchingConfig['min_similarity']) ? (float)$matchingConfig['min_similarity'] : 0.80;
                 $highSim = isset($matchingConfig['high_similarity']) ? (float)$matchingConfig['high_similarity'] : 0.95;
+                // Chuẩn hóa: nếu nhập dạng phần trăm (ví dụ 80 hoặc 95) thì chuyển thành dạng thập phân
+                if ($minSim > 1) $minSim = $minSim / 100;
+                if ($highSim > 1) $highSim = $highSim / 100;
             }
 
             $vision = new VisionService();
@@ -614,7 +617,14 @@ class ProductController
             }
 
             ob_clean();
-            echo json_encode(["status" => "success", "data" => $results]);
+            echo json_encode([
+                "status" => "success",
+                "data"   => $results,
+                "config" => [
+                    "min_similarity"  => round($minSim * 100, 2),
+                    "high_similarity" => round($highSim * 100, 2)
+                ]
+            ]);
         } catch (Exception $e) {
             if (ob_get_length()) ob_clean();
             echo json_encode(["status" => "error", "message" => $e->getMessage()]);
