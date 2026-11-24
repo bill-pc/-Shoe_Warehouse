@@ -32,6 +32,13 @@ $threshold = (int)$stockConfig['low_stock_threshold'];
                 <input type="date" name="end_date" class="form-control form-control-sm" value="<?= $filter['end'] ?>">
                 <button type="submit" class="btn btn-outline-dark btn-sm px-3">Lọc</button>
             </form>
+            <a href="index.php?page=report-export-excel&start_date=<?= urlencode($filter['start']) ?>&end_date=<?= urlencode($filter['end']) ?>" 
+               class="btn btn-sm px-3 shadow-sm d-flex align-items-center gap-1 text-decoration-none btn-export-excel"
+               style="background-color: #ffffff !important; color: #198754 !important; border: 1px solid #198754 !important;"
+               title="Xuất báo cáo Excel theo ngày đã chọn">
+                <i class="fas fa-file-excel" style="color: #198754 !important;"></i>
+                <span class="fw-semibold" style="color: #198754 !important;">Xuất Excel</span>
+            </a>
             <!-- <button class="btn btn-sm btn-white border shadow-sm" onclick="window.print()">
                 <i class="fas fa-print me-1"></i> In báo cáo
             </button> -->

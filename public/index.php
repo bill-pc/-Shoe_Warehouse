@@ -110,6 +110,13 @@ if (isset($_GET['page'])) {
         exit;
     }
 
+    if ($_GET['page'] === 'report-export-excel') {
+        require_once __DIR__ . '/../app/controllers/ReportController.php';
+        $controller = new ReportController();
+        $controller->exportExcel();
+        exit;
+    }
+
     // --- BỔ SUNG: CHUYỂN CÁC YÊU CẦU AJAX CỦA PRODUCT LÊN ĐÂY ---
     if ($_GET['page'] === 'products' && isset($_GET['action'])) {
         require_once '../config/database.php';
