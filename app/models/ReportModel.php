@@ -195,6 +195,82 @@ class ReportModel
         return pg_fetch_all(pg_query($this->conn, $sql)) ?: [];
     }
 
+    // --- CÁC HÀM PHỤC VỤ XUẤT BÁO CÁO EXCEL ---
+
+    /**
+     * Sheet 1: Danh sách các hãng (Tên hãng, Số lượng sản phẩm mỗi hãng, Tổng tồn số lượng hãng)
+     */
+    public function getExcelBrandSummary()
+    {
+        $sql = "SELECT 
+                    c.category_name as brand,
+                    COUNT(DISTINCT p.product_id) as total_products,
+                    COALESCE(SUM(pv.stock), 0) as total_quantity
+                FROM categories c
+                LEFT JOIN products p ON c.category_id = p.category_id AND p.is_deleted = false
+                LEFT JOIN product_variants pv ON p.product_id = pv.product_id AND pv.is_deleted = false
+                WHERE c.is_deleted = false
+                GROUP BY c.category_id, c.category_name
+                ORDER BY c.category_name ASC";
+        $res = pg_query($this->conn, $sql);
+        return pg_fetch_all($res) ?: [];
+    }
+
+    /**
+     * Sheet 2: Tồn kho gom nhóm theo hãng (Tên hãng, Tên sản phẩm, Màu, Size, Tổng số lượng)
+     */
+    public function getExcelInventory()
+    {
+        $sql = "SELECT 
+                    c.category_name as brand,
+                    p.product_name,
+                    pv.color,
+                    pv.size,
+                    pv.stock as total_quantity
+                FROM product_variants pv
+                JOIN products p ON pv.product_id = p.product_id
+                JOIN categories c ON p.category_id = c.category_id
+                WHERE pv.is_deleted = false AND p.is_deleted = false AND c.is_deleted = false
+                ORDER BY c.category_name ASC, p.product_name ASC, pv.color ASC, pv.size ASC";
+        $res = pg_query($this->conn, $sql);
+        return pg_fetch_all($res) ?: [];
+    }
+
+    /**
+     * Sheet 3 & 4: Thông tin nhập kho / xuất kho theo khoảng thời gian (Mã phiếu, Mã lô hàng, Tên hãng, Tên sản phẩm, Màu, Size, Tổng số lượng)
+     */
+    public function getExcelTransactionReport($type, $startDate = null, $endDate = null)
+    {
+        $tType = strtoupper($type);
+        $sql = "SELECT 
+                    COALESCE(tk.ticket_code, t.reference_id, 'N/A') as ticket_code,
+                    COALESCE(tk.batch_code, 'N/A') as batch_code,
+                    c.category_name as brand,
+                    p.product_name,
+                    pv.color,
+                    pv.size,
+                    SUM(t.quantity) as total_quantity
+                FROM transactions t
+                JOIN product_variants pv ON t.variant_id = pv.variant_id
+                JOIN products p ON pv.product_id = p.product_id
+                JOIN categories c ON p.category_id = c.category_id
+                LEFT JOIN tickets tk ON t.reference_id = tk.ticket_code
+                WHERE t.transaction_type = $1";
+        
+        $params = [$tType];
+        if ($startDate && $endDate) {
+            $sql .= " AND t.created_at BETWEEN $2 AND $3";
+            $params[] = $startDate . ' 00:00:00';
+            $params[] = $endDate . ' 23:59:59';
+        }
+
+        $sql .= " GROUP BY tk.ticket_code, t.reference_id, tk.batch_code, c.category_name, p.product_name, pv.color, pv.size
+                  ORDER BY tk.ticket_code ASC, c.category_name ASC, p.product_name ASC, pv.color ASC, pv.size ASC";
+
+        $res = pg_query_params($this->conn, $sql, $params);
+        return pg_fetch_all($res) ?: [];
+    }
+
 
 
     // --- CẤP 1: Lấy tổng hợp theo Brand ---

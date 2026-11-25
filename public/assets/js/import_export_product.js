@@ -265,7 +265,11 @@ function loadFormForIndex(index) {
         const topMatch = matches.length > 0 ? matches[0] : null;
         const topScore = topMatch ? Math.round(topMatch.similarity_score * 100) : 0;
 
-        if (topScore >= 95) {
+        // Đọc ngưỡng từ config/PercentMatching.php qua window.AI_MATCHING
+        const minScoreThreshold = (window.AI_MATCHING && window.AI_MATCHING.min_similarity !== undefined) ? window.AI_MATCHING.min_similarity : 80;
+        const highScoreThreshold = (window.AI_MATCHING && window.AI_MATCHING.high_similarity !== undefined) ? window.AI_MATCHING.high_similarity : 95;
+
+        if (topScore >= highScoreThreshold) {
             alertMessage = `<div class="alert alert-glass-blink py-2 rounded-1 mb-3"><i class="fas fa-check-circle me-2"></i><strong>AI XÁC THỰC:</strong> Khớp tuyệt đối (${topScore}%).</div>`;
             defaultBrand = topMatch.brand;
             defaultName = topMatch.product_name;
@@ -285,7 +289,7 @@ function loadFormForIndex(index) {
                     `;
             }
 
-        } else if (topScore >= 80) {
+        } else if (topScore >= minScoreThreshold) {
             alertMessage = `<div class="alert alert-info py-2 rounded-1 mb-3 bg-transparent border border-info text-info"><i class="fas fa-lightbulb me-2"></i><strong>AI GỢI Ý:</strong> Mẫu gần giống (${topScore}%). Xem bên dưới.</div>`;
             suggestionHtml = `<div class="suggestion-list mb-3 p-2 rounded" style="max-height: 150px; overflow-y: auto;">`;
             matches.forEach((m) => {

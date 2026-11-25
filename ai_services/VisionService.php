@@ -30,8 +30,8 @@ class VisionService
             'Content-Length: ' . strlen($payload)
         ));
 
-        // Timeout 15 giây để tránh treo Web nếu Python bị nghẽn
-        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+        // Timeout 90 giây để đủ thời gian cho AI bóc tách nền và trích xuất Vector
+        curl_setopt($ch, CURLOPT_TIMEOUT, 90);
 
         // Thực thi gọi API
         $result = curl_exec($ch);

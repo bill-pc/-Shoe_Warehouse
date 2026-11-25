@@ -1,7 +1,14 @@
 <?php
 // app/controllers/ReportController.php
 
+require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../models/ReportModel.php';
+
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 /**
  * Controller xử lý các yêu cầu liên quan đến báo cáo và thống kê
@@ -165,5 +172,262 @@ class ReportController
     {
         if (ob_get_length()) ob_clean();
         header('Content-Type: application/json; charset=utf-8');
+    }
+
+    /**
+     * Chức năng: Xuất báo cáo Excel đa Sheet theo ngày đã chọn
+     */
+    public function exportExcel()
+    {
+        // 1. Lấy khoảng ngày lọc
+        $startDate = $_GET['start_date'] ?? null;
+        $endDate   = $_GET['end_date'] ?? null;
+
+        if (!$startDate) {
+            $startDate = date('Y-m-01');
+        }
+        if (!$endDate) {
+            $endDate = date('Y-m-d');
+        }
+
+        // Định dạng tên file: "Báo cáo xx-xxxx.xlsx" (theo tháng-năm của ngày kết thúc lọc)
+        $monthYear = date('m-Y', strtotime($endDate));
+        $filename = "Báo cáo {$monthYear}.xlsx";
+
+        // 2. Lấy dữ liệu từ Model
+        $brandSummary   = $this->reportModel->getExcelBrandSummary();
+        $inventory      = $this->reportModel->getExcelInventory();
+        $importData     = $this->reportModel->getExcelTransactionReport('IMPORT', $startDate, $endDate);
+        $exportData     = $this->reportModel->getExcelTransactionReport('EXPORT', $startDate, $endDate);
+
+        // 3. Khởi tạo đối tượng Spreadsheet
+        $spreadsheet = new Spreadsheet();
+
+        // Định dạng style dùng chung
+        $headerStyle = [
+            'font' => [
+                'bold'  => true,
+                'color' => ['rgb' => 'FFFFFF'],
+                'size'  => 11,
+            ],
+            'fill' => [
+                'fillType'   => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '198754'], // Màu xanh lá/xanh thương hiệu
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical'   => Alignment::VERTICAL_CENTER,
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color'       => ['rgb' => 'CCCCCC'],
+                ],
+            ],
+        ];
+
+        $borderStyle = [
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color'       => ['rgb' => 'E0E0E0'],
+                ],
+            ],
+        ];
+
+        // ==========================================
+        // SHEET 1: Danh sách các hãng có trong kho
+        // ==========================================
+        $sheet1 = $spreadsheet->getActiveSheet();
+        $sheet1->setTitle('Danh sách hãng');
+
+        // Tiêu đề bảng
+        $sheet1->setCellValue('A1', 'Tên hãng');
+        $sheet1->setCellValue('B1', 'Số lượng sản phẩm mỗi hãng');
+        $sheet1->setCellValue('C1', 'Tổng số lượng tất cả sản phẩm có trong hãng');
+
+        $rowIdx = 2;
+        $totalBrandCount = count($brandSummary);
+
+        foreach ($brandSummary as $b) {
+            $sheet1->setCellValue('A' . $rowIdx, $b['brand']);
+            $sheet1->setCellValue('B' . $rowIdx, (int)$b['total_products']);
+            $sheet1->setCellValue('C' . $rowIdx, (int)$b['total_quantity']);
+            $rowIdx++;
+        }
+
+        // Hàng tổng kết nếu có dữ liệu
+        if ($rowIdx > 2) {
+            $sheet1->setCellValue('A' . $rowIdx, 'Tổng cộng (' . $totalBrandCount . ' hãng)');
+            $sheet1->setCellValue('B' . $rowIdx, "=SUM(B2:B" . ($rowIdx - 1) . ")");
+            $sheet1->setCellValue('C' . $rowIdx, "=SUM(C2:C" . ($rowIdx - 1) . ")");
+
+            $totalRowStyle = [
+                'font' => ['bold' => true, 'color' => ['rgb' => '000000']],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E8F5E9']],
+                'borders' => [
+                    'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'B0BEC5']],
+                ],
+            ];
+            $sheet1->getStyle("A{$rowIdx}:C{$rowIdx}")->applyFromArray($totalRowStyle);
+            $sheet1->getStyle("A2:C" . ($rowIdx - 1))->applyFromArray($borderStyle);
+        }
+
+        $sheet1->getStyle('A1:C1')->applyFromArray($headerStyle);
+        $sheet1->getRowDimension(1)->setRowHeight(28);
+
+        // Canh giữa số lượng
+        if ($rowIdx > 2) {
+            $sheet1->getStyle("B2:C{$rowIdx}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        }
+
+        // Tự động căn chỉnh độ rộng cột
+        foreach (range('A', 'C') as $col) {
+            $sheet1->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // ==========================================
+        // SHEET 2: Tồn kho gom nhóm theo hãng (Filter)
+        // ==========================================
+        $sheet2 = $spreadsheet->createSheet();
+        $sheet2->setTitle('Tồn kho theo hãng');
+
+        $sheet2->setCellValue('A1', 'Tên hãng');
+        $sheet2->setCellValue('B1', 'Tên sản phẩm');
+        $sheet2->setCellValue('C1', 'Màu');
+        $sheet2->setCellValue('D1', 'Size');
+        $sheet2->setCellValue('E1', 'Tổng số lượng');
+
+        $rowIdx = 2;
+        foreach ($inventory as $item) {
+            $sheet2->setCellValue('A' . $rowIdx, $item['brand']);
+            $sheet2->setCellValue('B' . $rowIdx, $item['product_name']);
+            $sheet2->setCellValue('C' . $rowIdx, $item['color']);
+            $sheet2->setCellValue('D' . $rowIdx, $item['size']);
+            $sheet2->setCellValue('E' . $rowIdx, (int)$item['total_quantity']);
+            $rowIdx++;
+        }
+
+        $sheet2->getStyle('A1:E1')->applyFromArray($headerStyle);
+        $sheet2->getRowDimension(1)->setRowHeight(28);
+
+        if ($rowIdx > 2) {
+            $sheet2->getStyle("A2:E" . ($rowIdx - 1))->applyFromArray($borderStyle);
+            $sheet2->getStyle("C2:D" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet2->getStyle("E2:E" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            // Bật bộ lọc AutoFilter
+            $sheet2->setAutoFilter("A1:E" . ($rowIdx - 1));
+        } else {
+            $sheet2->setAutoFilter("A1:E1");
+        }
+
+        foreach (range('A', 'E') as $col) {
+            $sheet2->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // ==========================================
+        // SHEET 3: Thông tin nhập kho (Filter)
+        // ==========================================
+        $sheet3 = $spreadsheet->createSheet();
+        $sheet3->setTitle('Thông tin nhập kho');
+
+        $sheet3->setCellValue('A1', 'Mã phiếu');
+        $sheet3->setCellValue('B1', 'Mã lô hàng');
+        $sheet3->setCellValue('C1', 'Tên hãng');
+        $sheet3->setCellValue('D1', 'Tên sản phẩm');
+        $sheet3->setCellValue('E1', 'Màu');
+        $sheet3->setCellValue('F1', 'Size');
+        $sheet3->setCellValue('G1', 'Tổng số lượng');
+
+        $rowIdx = 2;
+        foreach ($importData as $item) {
+            $sheet3->setCellValue('A' . $rowIdx, $item['ticket_code']);
+            $sheet3->setCellValue('B' . $rowIdx, $item['batch_code']);
+            $sheet3->setCellValue('C' . $rowIdx, $item['brand']);
+            $sheet3->setCellValue('D' . $rowIdx, $item['product_name']);
+            $sheet3->setCellValue('E' . $rowIdx, $item['color']);
+            $sheet3->setCellValue('F' . $rowIdx, $item['size']);
+            $sheet3->setCellValue('G' . $rowIdx, (int)$item['total_quantity']);
+            $rowIdx++;
+        }
+
+        $sheet3->getStyle('A1:G1')->applyFromArray($headerStyle);
+        $sheet3->getRowDimension(1)->setRowHeight(28);
+
+        if ($rowIdx > 2) {
+            $sheet3->getStyle("A2:G" . ($rowIdx - 1))->applyFromArray($borderStyle);
+            $sheet3->getStyle("A2:B" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet3->getStyle("E2:F" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet3->getStyle("G2:G" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            // Bật bộ lọc AutoFilter
+            $sheet3->setAutoFilter("A1:G" . ($rowIdx - 1));
+        } else {
+            $sheet3->setAutoFilter("A1:G1");
+        }
+
+        foreach (range('A', 'G') as $col) {
+            $sheet3->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // ==========================================
+        // SHEET 4: Thông tin xuất kho (Filter)
+        // ==========================================
+        $sheet4 = $spreadsheet->createSheet();
+        $sheet4->setTitle('Thông tin xuất kho');
+
+        $sheet4->setCellValue('A1', 'Mã phiếu');
+        $sheet4->setCellValue('B1', 'Mã lô hàng');
+        $sheet4->setCellValue('C1', 'Tên hãng');
+        $sheet4->setCellValue('D1', 'Tên sản phẩm');
+        $sheet4->setCellValue('E1', 'Màu');
+        $sheet4->setCellValue('F1', 'Size');
+        $sheet4->setCellValue('G1', 'Tổng số lượng');
+
+        $rowIdx = 2;
+        foreach ($exportData as $item) {
+            $sheet4->setCellValue('A' . $rowIdx, $item['ticket_code']);
+            $sheet4->setCellValue('B' . $rowIdx, $item['batch_code']);
+            $sheet4->setCellValue('C' . $rowIdx, $item['brand']);
+            $sheet4->setCellValue('D' . $rowIdx, $item['product_name']);
+            $sheet4->setCellValue('E' . $rowIdx, $item['color']);
+            $sheet4->setCellValue('F' . $rowIdx, $item['size']);
+            $sheet4->setCellValue('G' . $rowIdx, (int)$item['total_quantity']);
+            $rowIdx++;
+        }
+
+        $sheet4->getStyle('A1:G1')->applyFromArray($headerStyle);
+        $sheet4->getRowDimension(1)->setRowHeight(28);
+
+        if ($rowIdx > 2) {
+            $sheet4->getStyle("A2:G" . ($rowIdx - 1))->applyFromArray($borderStyle);
+            $sheet4->getStyle("A2:B" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet4->getStyle("E2:F" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet4->getStyle("G2:G" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            // Bật bộ lọc AutoFilter
+            $sheet4->setAutoFilter("A1:G" . ($rowIdx - 1));
+        } else {
+            $sheet4->setAutoFilter("A1:G1");
+        }
+
+        foreach (range('A', 'G') as $col) {
+            $sheet4->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // Đặt active sheet về sheet 1 khi mở file
+        $spreadsheet->setActiveSheetIndex(0);
+
+        // 4. Thiết lập header tải file về trình duyệt
+        if (ob_get_length()) {
+            ob_end_clean();
+        }
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . rawurlencode($filename) . '"; filename*=UTF-8\'\'' . rawurlencode($filename));
+        header('Cache-Control: max-age=0');
+        header('Pragma: public');
+
+        $writer = new Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit;
     }
 }

@@ -286,3 +286,37 @@
             page-break-inside: avoid;
         }
     }
+
+    /* Nút xuất file Excel cố định viền xanh, chữ xanh, nền trắng (triệt tiêu toàn bộ hiệu ứng hover của Bootstrap/Browser) */
+    a.btn-export-excel,
+    .btn-export-excel {
+        background: #ffffff !important;
+        background-color: #ffffff !important;
+        color: #198754 !important;
+        border: 1px solid #198754 !important;
+        outline: none !important;
+        text-decoration: none !important;
+        transition: none !important;
+        transform: none !important;
+    }
+
+    a.btn-export-excel:hover,
+    a.btn-export-excel:focus,
+    a.btn-export-excel:active,
+    .btn-export-excel:hover,
+    .btn-export-excel:focus,
+    .btn-export-excel:active {
+        background: #ffffff !important;
+        background-color: #ffffff !important;
+        color: #198754 !important;
+        border: 1px solid #198754 !important;
+        border-color: #198754 !important;
+        outline: none !important;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+        transform: none !important;
+    }
+
+    a.btn-export-excel *,
+    .btn-export-excel * {
+        color: #198754 !important;
+    }
