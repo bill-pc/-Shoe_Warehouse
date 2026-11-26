@@ -40,29 +40,199 @@ class ExportModel
      * Chức năng: Tìm các Ô, Kệ chứa dòng JSONB mã hàng.
      * Tác dụng: Truy xuất được vị trí (layout) kho và chỉ đường cho thủ kho đi gom giày xuất đi.
      */
-    public function getLocationsFromJSON($variant_id)
+    public function getLocationsFromJSON($variant_id, $required_qty = 0, $current_detail_id = 0)
     {
+        $variant_id = (int)$variant_id;
+        $required_qty = max(0, (int)$required_qty);
+        $current_detail_id = max(0, (int)$current_detail_id);
+
         $sql = "
-            SELECT 
+            SELECT
                 s.shelf_id,
-                s.shelf_name, 
-                (tier.key || '-' || slot.key) AS slot_code, 
-                COUNT(item.value)::int AS qty_in_slot
-            FROM 
-                public.shelves s,
-                jsonb_each(s.layout) AS tier,         
-                jsonb_each(tier.value) AS slot,       
-                jsonb_array_elements_text(slot.value) AS item 
-            WHERE 
-                item.value = $1::text AND s.is_deleted = true  AND s.status = true
-            GROUP BY 
-                s.shelf_id, s.shelf_name, tier.key, slot.key
-            HAVING 
-                COUNT(item.value) > 0
+                s.shelf_name,
+                s.max_capacity_per_slot,
+                tier.key AS tier_key,
+                (tier.key || '-' || slot.key) AS slot_code,
+                COUNT(item.value)::int AS physical_stock
+            FROM public.shelves s,
+                 jsonb_each(s.layout) AS tier,
+                 jsonb_each(tier.value) AS slot,
+                 jsonb_array_elements_text(slot.value) AS item
+            WHERE item.value = $1::text
+              AND s.is_deleted = true
+              AND s.status = true
+            GROUP BY s.shelf_id, s.shelf_name, s.max_capacity_per_slot, tier.key, slot.key
+            HAVING COUNT(item.value) > 0
         ";
 
         $res = pg_query_params($this->conn, $sql, [$variant_id]);
-        return $res ? (pg_fetch_all($res) ?: []) : [];
+        $rows = $res ? (pg_fetch_all($res) ?: []) : [];
+        if (empty($rows)) {
+            return ['slots' => [], 'recommended' => [], 'shortage' => $required_qty];
+        }
+
+        // Trừ lượng đã được chọn trên các phiếu xuất còn mở khác ở đúng kệ/ô.
+        $reservedBySlot = [];
+        $reservationSql = "
+            SELECT td.note
+            FROM ticket_details td
+            JOIN tickets t ON t.ticket_id = td.ticket_id
+            WHERE td.variant_id = $1
+              AND td.detail_id <> $2
+              AND t.ticket_type = 'EXPORT'
+              AND t.status IN ('PENDING', 'PROCESSING', 'PAUSED')
+              AND t.is_deleted = false
+              AND td.note IS NOT NULL
+              AND BTRIM(td.note) <> ''
+        ";
+        $reservationRes = pg_query_params($this->conn, $reservationSql, [$variant_id, $current_detail_id]);
+        if ($reservationRes) {
+            while ($reservationRow = pg_fetch_assoc($reservationRes)) {
+                $locations = json_decode($reservationRow['note'], true);
+                if (!is_array($locations)) continue;
+
+                foreach ($locations as $location) {
+                    if (!is_array($location)) continue;
+                    $key = ((int)($location['shelf_id'] ?? 0)) . '|' . (string)($location['slot_code'] ?? '');
+                    $reservedBySlot[$key] = ($reservedBySlot[$key] ?? 0) + max(0, (int)($location['qty'] ?? 0));
+                }
+            }
+        }
+
+        // Lịch sử hiện tại chưa lưu kệ/ô của giao dịch nhập. Dùng tuổi lô nhập cũ nhất
+        // của biến thể làm tín hiệu FIFO chung, thay vì gán một thời gian giả cho từng ô.
+        $historySql = "
+            SELECT MIN(created_at) AS oldest_import_at
+            FROM transactions
+            WHERE transaction_type = 'IMPORT' AND variant_id = $1
+        ";
+        $historyRes = pg_query_params($this->conn, $historySql, [$variant_id]);
+        $history = $historyRes ? pg_fetch_assoc($historyRes) : null;
+        $oldestImportAt = $history['oldest_import_at'] ?? null;
+        $ageDays = null;
+        if ($oldestImportAt) {
+            $ageDays = max(0, (int)floor((time() - strtotime($oldestImportAt)) / 86400));
+        }
+        $maxAgeDays = $ageDays;
+
+        $candidates = [];
+        foreach ($rows as $row) {
+            $slotKey = ((int)$row['shelf_id']) . '|' . $row['slot_code'];
+            $stock = max(0, (int)$row['physical_stock'] - ($reservedBySlot[$slotKey] ?? 0));
+            if ($stock <= 0) continue;
+
+            $maxCapacity = max(1, (int)$row['max_capacity_per_slot']);
+            $fifoRaw = ($ageDays === null || !$maxAgeDays)
+                ? 50.0
+                : min(100.0, ($ageDays / $maxAgeDays) * 100);
+
+            if ($stock <= $required_qty && $required_qty > 0) {
+                $consolidationRaw = 100.0;
+                $consolidationReason = "Lấy hết {$stock} đôi lẻ để giải phóng ô";
+            } else {
+                $consolidationRaw = round(max(0, 1 - ($stock / $maxCapacity)) * 100, 1);
+                $consolidationReason = "Ô còn {$stock}/{$maxCapacity} đôi, ưu tiên ô ít hàng";
+            }
+
+            if ($required_qty <= 0 || $stock >= $required_qty) {
+                $singleStopRaw = 100.0;
+                $singleStopReason = $required_qty > 0
+                    ? "Đủ {$required_qty} đôi tại 1 vị trí"
+                    : 'Đủ hàng tại một vị trí';
+            } else {
+                $singleStopRaw = round(($stock / $required_qty) * 100, 1);
+                $singleStopReason = "Đáp ứng {$stock}/{$required_qty} đôi cần xuất";
+            }
+
+            $normalizedTier = 'T' . ltrim(strtoupper((string)$row['tier_key']), 'T');
+            switch ($normalizedTier) {
+                case 'T2':
+                case 'T3':
+                    $ergonomicsRaw = 100.0;
+                    $ergonomicsReason = "Tầng {$normalizedTier} (Tầm với thuận tiện)";
+                    break;
+                case 'T1':
+                    $ergonomicsRaw = 70.0;
+                    $ergonomicsReason = "Tầng {$normalizedTier} (Tầng thấp)";
+                    break;
+                case 'T4':
+                    $ergonomicsRaw = 50.0;
+                    $ergonomicsReason = "Tầng {$normalizedTier} (Tầng cao)";
+                    break;
+                default:
+                    $ergonomicsRaw = 40.0;
+                    $ergonomicsReason = "Tầng {$normalizedTier} (Ngoài vùng tầm với chuẩn)";
+            }
+
+            $fifoReason = $ageDays === null
+                ? 'Chưa có lịch sử thời gian nhập (mặc định 50 điểm)'
+                : "Lô cũ nhất của biến thể nhập {$ageDays} ngày trước (lịch sử chưa tách theo ô)";
+            $score = round(
+                (0.35 * $fifoRaw) +
+                (0.30 * $consolidationRaw) +
+                (0.25 * $singleStopRaw) +
+                (0.10 * $ergonomicsRaw),
+                2
+            );
+
+            $candidates[] = [
+                'shelf_id' => (int)$row['shelf_id'],
+                'shelf_name' => $row['shelf_name'],
+                'slot_code' => $row['slot_code'],
+                'tier' => $normalizedTier,
+                'qty_in_slot' => $stock,
+                'physical_stock' => (int)$row['physical_stock'],
+                'reserved_qty' => $reservedBySlot[$slotKey] ?? 0,
+                'max_capacity' => $maxCapacity,
+                'score' => $score,
+                '_breakdown_raw' => [
+                    'fifo' => [$fifoRaw, $fifoReason],
+                    'consolidation' => [$consolidationRaw, $consolidationReason],
+                    'single_stop' => [$singleStopRaw, $singleStopReason],
+                    'ergonomics' => [$ergonomicsRaw, $ergonomicsReason],
+                ],
+            ];
+        }
+
+        usort($candidates, function ($a, $b) {
+            $scoreCompare = $b['score'] <=> $a['score'];
+            if ($scoreCompare !== 0) return $scoreCompare;
+            $stockCompare = $a['qty_in_slot'] <=> $b['qty_in_slot'];
+            if ($stockCompare !== 0) return $stockCompare;
+            return strcmp($a['shelf_name'] . $a['slot_code'], $b['shelf_name'] . $b['slot_code']);
+        });
+
+        $remaining = $required_qty;
+        $recommended = [];
+        foreach ($candidates as $rankIndex => &$candidate) {
+            $raw = $candidate['_breakdown_raw'];
+            $candidate['score_breakdown'] = [
+                'rank' => $rankIndex + 1,
+                'fifo' => ['weighted' => round(0.35 * $raw['fifo'][0], 2), 'reason' => $raw['fifo'][1]],
+                'consolidation' => ['weighted' => round(0.30 * $raw['consolidation'][0], 2), 'reason' => $raw['consolidation'][1]],
+                'single_stop' => ['weighted' => round(0.25 * $raw['single_stop'][0], 2), 'reason' => $raw['single_stop'][1]],
+                'ergonomics' => ['weighted' => round(0.10 * $raw['ergonomics'][0], 2), 'reason' => $raw['ergonomics'][1]],
+            ];
+            unset($candidate['_breakdown_raw']);
+
+            $pickQty = min($remaining, $candidate['qty_in_slot']);
+            if ($pickQty > 0) {
+                $recommended[] = [
+                    'shelf_id' => $candidate['shelf_id'],
+                    'slot_code' => $candidate['slot_code'],
+                    'qty' => $pickQty,
+                    'score' => $candidate['score'],
+                ];
+                $remaining -= $pickQty;
+            }
+        }
+        unset($candidate);
+
+        return [
+            'slots' => $candidates,
+            'recommended' => $recommended,
+            'shortage' => max(0, $remaining),
+        ];
     }
 
 

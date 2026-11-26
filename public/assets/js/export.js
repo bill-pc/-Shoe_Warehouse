@@ -172,8 +172,15 @@ async function autoFillExportForm(detailId) {
     locContainer.innerHTML = '<span class="text-white-50 small"><i class="fas fa-spinner fa-spin"></i> Đang dò vị trí kệ...</span>';
 
     try {
-        const res = await fetch(`index.php?page=tickets&action=get_locations&variant_id=${item.variant_id}`);
-        const locs = await res.json();
+        const params = new URLSearchParams({
+            variant_id: item.variant_id,
+            required_qty: totalQty,
+            detail_id: item.detail_id
+        });
+        const res = await fetch(`index.php?page=tickets&action=get_locations&${params.toString()}`);
+        const response = await res.json();
+        const locs = Array.isArray(response) ? response : (response.slots || []);
+        const recommended = Array.isArray(response.recommended) ? response.recommended : [];
 
         if (!locs || locs.length === 0) {
             locContainer.innerHTML = '<span class="badge bg-danger p-2">Mẫu này hiện không có sẵn trên kệ!</span>';
@@ -190,21 +197,64 @@ async function autoFillExportForm(detailId) {
             }
         }
 
-        let html = '';
+        const hasSavedLocations = Array.isArray(savedLocs) && savedLocs.some(location => (parseInt(location.qty) || 0) > 0);
+        const recommendedBySlot = new Map(
+            recommended.map(location => [`${location.shelf_id}|${location.slot_code}`, parseInt(location.qty) || 0])
+        );
+
+        let html = `
+            <div class="w-100 mb-2 position-relative">
+                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     stroke="#94a3b8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                     style="position:absolute; left:12px; top:50%; transform:translateY(-50%); pointer-events:none; z-index:2;">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <path d="m20 20-3.5-3.5"></path>
+                </svg>
+                <input type="search" class="form-control form-control-sm bg-dark text-white border-secondary"
+                       style="padding-left:36px;" autocomplete="off"
+                       placeholder="Tìm mã ô, kệ, tầng (VD: A_1, Kệ B)..."
+                       aria-label="Tìm vị trí lấy hàng" oninput="filterPickLocations(this.value)">
+            </div>`;
         locs.forEach(l => {
             // Tìm số lượng đã tạm lưu trên kệ/ô này
             const savedItem = Array.isArray(savedLocs) ? savedLocs.find(s => s.shelf_id == l.shelf_id && s.slot_code == l.slot_code) : null;
-            const savedQty = savedItem ? parseInt(savedItem.qty) : 0;
+            const slotKey = `${l.shelf_id}|${l.slot_code}`;
+            const recommendedQty = recommendedBySlot.get(slotKey) || 0;
+            const selectedQty = hasSavedLocations
+                ? (savedItem ? parseInt(savedItem.qty) || 0 : 0)
+                : recommendedQty;
+            const isRecommended = recommendedQty > 0;
+            const breakdown = l.score_breakdown || {};
+            const rawTier = String(l.slot_code).split('-')[0];
+            const searchText = `kệ ${l.shelf_name} ${l.shelf_name} ô ${l.slot_code} ${l.slot_code} tầng ${l.tier || rawTier} ${l.shelf_name}_${rawTier}`;
 
-            // ĐÃ SỬA: Ép kiểu parseInt(l.qty_in_slot) để tránh cộng chuỗi '4' + 0 = '40'
             html += `
-            <div class="w-100 d-flex justify-content-between align-items-center bg-black bg-opacity-25 p-2 rounded mb-2 border border-secondary">
-                <span class="text-white fw-bold small">
-                    Kệ ${l.shelf_name} - Ô ${l.slot_code} <span class="text-warning">(Tồn: ${l.qty_in_slot})</span>
-                </span>
-                <input type="number" class="form-control form-control-sm text-center pick-input fw-bold bg-dark text-info border-info" 
-                       style="width: 80px;" data-shelf-id="${l.shelf_id}" data-slot="${l.slot_code}"
-                       min="0" max="${parseInt(l.qty_in_slot) + savedQty}" value="${savedQty}" oninput="validatePickTotal()">
+            <div class="pick-location-row w-100 bg-black bg-opacity-25 p-2 rounded mb-2 border ${isRecommended ? 'border-success shadow-sm' : 'border-secondary'}"
+                 data-pick-search="${escapeExportHtml(normalizePickSearch(searchText))}">
+                <div class="d-flex justify-content-between align-items-center gap-2">
+                    <div class="text-white fw-bold small">
+                        <div>
+                            Kệ ${escapeExportHtml(l.shelf_name)} - Ô ${escapeExportHtml(l.slot_code)}
+                            <span class="text-warning">(Tồn: ${parseInt(l.qty_in_slot) || 0})</span>
+                        </div>
+                        <div class="d-flex align-items-center flex-wrap gap-1 mt-1">
+                            ${isRecommended ? '<span class="badge bg-success">⭐ Đề xuất lấy hàng</span>' : ''}
+                            <button type="button" class="badge rounded-pill bg-secondary border-0 text-light"
+                                    style="cursor:pointer;" aria-expanded="false"
+                                    onclick="togglePickScoreDetails(this)">${Number(l.score || 0).toFixed(2)} điểm ▾</button>
+                        </div>
+                    </div>
+                    <input type="number" class="form-control form-control-sm text-center pick-input fw-bold bg-dark text-info border-info"
+                           style="width: 80px;" data-shelf-id="${l.shelf_id}" data-slot="${escapeExportHtml(l.slot_code)}"
+                           min="0" max="${parseInt(l.qty_in_slot) || 0}" value="${Math.min(selectedQty, parseInt(l.qty_in_slot) || 0)}" oninput="validatePickTotal()">
+                </div>
+                <div class="pick-score-details d-none mt-2 p-2 rounded border border-secondary bg-dark small text-white-50">
+                    <div class="fw-bold text-info mb-1">Xếp hạng: Top #${parseInt(breakdown.rank) || 0} ưu tiên</div>
+                    ${renderPickScoreLine('Ưu tiên nhập trước FIFO 35%', breakdown.fifo)}
+                    ${renderPickScoreLine('Dọn trống ô lẻ 30%', breakdown.consolidation)}
+                    ${renderPickScoreLine('Gom 1 lần lấy 25%', breakdown.single_stop)}
+                    ${renderPickScoreLine('Tầm với tầng 10%', breakdown.ergonomics)}
+                </div>
             </div>`;
         });
         locContainer.innerHTML = html;
@@ -213,6 +263,52 @@ async function autoFillExportForm(detailId) {
     } catch (e) {
         locContainer.innerHTML = '<span class="text-danger small">Lỗi truy xuất sơ đồ kho.</span>';
     }
+}
+
+function normalizePickSearch(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .toLowerCase()
+        .trim();
+}
+
+function escapeExportHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function renderPickScoreLine(label, detail) {
+    const weighted = Number(detail && detail.weighted ? detail.weighted : 0).toFixed(2);
+    const reason = escapeExportHtml(detail && detail.reason ? detail.reason : 'Chưa có dữ liệu');
+    return `
+        <div class="d-flex justify-content-between gap-2 border-top border-secondary py-1">
+            <span><span class="text-white">${label}:</span> ${reason}</span>
+            <strong class="text-info text-nowrap">+${weighted}</strong>
+        </div>`;
+}
+
+function togglePickScoreDetails(button) {
+    const details = button.closest('.pick-location-row')?.querySelector('.pick-score-details');
+    if (!details) return;
+
+    const isOpening = details.classList.contains('d-none');
+    details.classList.toggle('d-none', !isOpening);
+    button.setAttribute('aria-expanded', isOpening ? 'true' : 'false');
+    button.textContent = button.textContent.replace(isOpening ? '▾' : '▴', isOpening ? '▴' : '▾');
+}
+
+function filterPickLocations(query) {
+    const normalizedQuery = normalizePickSearch(query);
+    document.querySelectorAll('#pick_locations_container .pick-location-row').forEach(row => {
+        row.classList.toggle('d-none', normalizedQuery !== '' && !row.dataset.pickSearch.includes(normalizedQuery));
+    });
 }
 
 

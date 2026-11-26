@@ -279,9 +279,15 @@ class ImportModel
     {
         try {
             // 1. Lấy danh sách kệ từ DB
-$shelves = pg_query($this->conn, "SELECT shelf_id, shelf_name, layout, max_capacity_per_slot FROM shelves ORDER BY shelf_name ASC, shelf_id ASC");
+            $shelves = pg_query(
+                $this->conn,
+                "SELECT shelf_id, shelf_name, layout, max_capacity_per_slot
+                 FROM shelves
+                 WHERE is_deleted = true AND status = true
+                 ORDER BY shelf_name ASC, shelf_id ASC"
+            );
             if (!$shelves) {
-                return ['current' => [], 'available' => [], 'recommended' => [], 'current_alloc' => []];
+                return ['current' => [], 'available' => [], 'slots' => [], 'recommended' => [], 'current_alloc' => [], 'shortage' => max(0, (int)$quantity)];
             }
 
             // 2. Lấy danh sách vị trí đã được giữ chỗ trong bảng tạm
@@ -319,6 +325,23 @@ $shelves = pg_query($this->conn, "SELECT shelf_id, shelf_name, layout, max_capac
 
             $current = [];
             $available = [];
+            $shelfVelocityScores = $this->getShelfVelocityScores();
+            $defaultVelocityScore = (float)($shelfVelocityScores['__default'] ?? 50.0);
+
+            $siblingVariantIds = [];
+            $resSiblings = @pg_query_params(
+                $this->conn,
+                "SELECT sibling.variant_id
+                 FROM product_variants target
+                 JOIN product_variants sibling ON sibling.product_id = target.product_id
+                 WHERE target.variant_id = $1 AND sibling.variant_id <> target.variant_id",
+                [(int)$variant_id]
+            );
+            if ($resSiblings) {
+                while ($rowSibling = pg_fetch_assoc($resSiblings)) {
+                    $siblingVariantIds[(string)$rowSibling['variant_id']] = true;
+                }
+            }
 
             // 4. Lặp qua các kệ để tính ô trống
             while ($shelf = pg_fetch_assoc($shelves)) {
@@ -327,20 +350,31 @@ $shelves = pg_query($this->conn, "SELECT shelf_id, shelf_name, layout, max_capac
                 $sName = $shelf['shelf_name'];
                 $sId = $shelf['shelf_id'];
 
+                $shelfHasSameProduct = false;
+                foreach ($layout as $shelfSlots) {
+                    foreach ($shelfSlots as $shelfItems) {
+                        foreach ($shelfItems as $shelfItem) {
+                            if (isset($siblingVariantIds[(string)$shelfItem])) {
+                                $shelfHasSameProduct = true;
+                                break 3;
+                            }
+                        }
+                    }
+                }
+
                 foreach ($layout as $tier => $slots) {
                     foreach ($slots as $slotKey => $items) {
-                        $occ = count($items);
+                        $currentQty = count($items);
                         $rKey = "{$sId}_{$tier}_{$slotKey}";
-                        if (isset($reserved_slots[$rKey])) {
-                            $occ += $reserved_slots[$rKey];
-                        }
+                        $reservedQty = (int)($reserved_slots[$rKey] ?? 0);
 
                         $varCount = 0;
                         foreach ($items as $item) {
                             if ((string)$item === (string)$variant_id) $varCount++;
                         }
 
-                        $availableQty = max(0, $max - $occ);
+                        $availableQty = max(0, $max - $currentQty - $reservedQty);
+                        if ($availableQty <= 0) continue;
                         $locationCode = "{$sName}_{$tier}-{$slotKey}";
                         $slotInfo = [
                             'shelf_id' => $sId,
@@ -351,48 +385,57 @@ $shelves = pg_query($this->conn, "SELECT shelf_id, shelf_name, layout, max_capac
                             'location_code' => $locationCode,
                             'max' => $max,
                             'available' => $availableQty,
+                            'available_space' => $availableQty,
                             'remaining_capacity' => $availableQty,
-                            'var_count' => $varCount
+                            'current_qty' => $currentQty,
+                            'reserved_qty' => $reservedQty,
+                            'var_count' => $varCount,
+                            'has_same_product_on_shelf' => $shelfHasSameProduct,
+                            'velocity_score' => (float)($shelfVelocityScores[(string)$sId] ?? $defaultVelocityScore),
+                            'velocity_is_default' => !array_key_exists((string)$sId, $shelfVelocityScores)
+                                && $defaultVelocityScore === 50.0
                         ];
 
-                        if ($varCount > 0 && $availableQty > 0) {
+                        if ($varCount > 0) {
                             $current[] = $slotInfo;
-                        } else if ($availableQty > 0 && $varCount == 0) {
+                        } else {
                             $available[] = $slotInfo;
                         }
                     }
                 }
             }
 
-            // 5. Lấy Tên Brand/Category của biến thể đang nhập
-            $brandName = '';
-            try {
-                $sqlBrand = "SELECT c.category_name 
-                             FROM product_variants pv 
-                             JOIN products p ON pv.product_id = p.product_id 
-                             JOIN categories c ON p.category_id = c.category_id 
-                             WHERE pv.variant_id = $1";
-                $resBrand = @pg_query_params($this->conn, $sqlBrand, [(int)$variant_id]);
-                if ($resBrand && pg_num_rows($resBrand) > 0) {
-                    $brandName = pg_fetch_result($resBrand, 0, 'category_name');
-                }
-            } catch (Exception $e) {
-                $brandName = '';
-            }
-
-            // 6. Lấy top brand bán chạy
-            $topBrands = $this->getTopSellingBrands();
-
             // 7. Chấm điểm Ranking Score cho từng ô và Sắp xếp
             $candidates = array_merge($current, $available);
             foreach ($candidates as &$slot) {
-                $slot['score'] = $this->calculateSlotScore($slot, $variant_id, $brandName, $topBrands);
+                $breakdown = $this->calculateSlotScore($slot);
+                $slot['score'] = $breakdown['total'];
+                $slot['score_breakdown'] = $breakdown;
+                $slot['is_current'] = (int)$slot['var_count'] > 0;
             }
             unset($slot);
 
             usort($candidates, function($a, $b) {
-                return ($b['score'] ?? 0) <=> ($a['score'] ?? 0);
+                $scoreCompare = ($b['score'] ?? 0) <=> ($a['score'] ?? 0);
+                if ($scoreCompare !== 0) return $scoreCompare;
+
+                $shelfCompare = strnatcasecmp((string)$a['shelf_name'], (string)$b['shelf_name']);
+                if ($shelfCompare !== 0) return $shelfCompare;
+
+                $tierCompare = strnatcasecmp((string)$a['tier'], (string)$b['tier']);
+                if ($tierCompare !== 0) return $tierCompare;
+
+                return strnatcasecmp((string)$a['slot'], (string)$b['slot']);
             });
+
+            foreach ($candidates as $index => &$slot) {
+                $slot['rank'] = $index + 1;
+                $slot['score_breakdown']['rank'] = $index + 1;
+            }
+            unset($slot);
+
+            $current = array_values(array_filter($candidates, fn($slot) => (int)$slot['var_count'] > 0));
+            $available = array_values(array_filter($candidates, fn($slot) => (int)$slot['var_count'] === 0));
 
             // 8. Gợi ý phân bổ số lượng tự động (Autofill)
             $remaining = max(0, (int)$quantity);
@@ -400,12 +443,17 @@ $shelves = pg_query($this->conn, "SELECT shelf_id, shelf_name, layout, max_capac
 
             foreach ($candidates as $slot) {
                 if ($remaining <= 0) break;
-                $avail = (int)$slot['available'];
+                $avail = (int)$slot['available_space'];
                 if ($avail > 0) {
                     $qtyToFill = min($remaining, $avail);
-                    $key = "{$slot['shelf_id']}_{$slot['tier']}_{$slot['slot']}";
-                    $recommended[$key] = [
+                    $recommended[] = [
+                        'key' => "{$slot['shelf_id']}_{$slot['tier']}_{$slot['slot']}",
+                        'shelf_id' => $slot['shelf_id'],
+                        'shelf_name' => $slot['shelf_name'],
+                        'tier' => $slot['tier'],
+                        'slot' => $slot['slot'],
                         'qty' => $qtyToFill,
+                        'allocated' => $qtyToFill,
                         'score' => $slot['score'] ?? 0
                     ];
                     $remaining -= $qtyToFill;
@@ -415,16 +463,18 @@ $shelves = pg_query($this->conn, "SELECT shelf_id, shelf_name, layout, max_capac
             return [
                 'current' => $current,
                 'available' => $available,
+                'slots' => $candidates,
                 'current_alloc' => $currentAllocData,
                 'recommended' => $recommended,
                 'shortage' => $remaining,
-                'location_code' => $current[0]['location_code'] ?? null
+                'location_code' => $candidates[0]['location_code'] ?? null
             ];
 
         } catch (Exception $e) {
             return [
                 'current' => [],
                 'available' => [],
+                'slots' => [],
                 'current_alloc' => [],
                 'recommended' => [],
                 'shortage' => (int)$quantity
@@ -432,70 +482,120 @@ $shelves = pg_query($this->conn, "SELECT shelf_id, shelf_name, layout, max_capac
         }
     }
     /**
- * Chức năng: Tính điểm ưu tiên cho 1 ô (Slot)
- * Tiêu chuẩn: Brand bán chạy ở Kệ A > Gom cùng Size/SKU > Sức chứa còn trống nhiều > Tầng vừa tầm tay (T2, T3)
+ * Tính điểm động cho một ô theo affinity, velocity, capacity và ergonomics.
  */
-private function calculateSlotScore($slot, $variant_id, $brand_name, $topBrands = [])
+private function calculateSlotScore($slot)
 {
-    $score = 0;
-
-    // 1. Tiêu chí 1: Tốc độ xuất kho của Brand -> Ưu tiên xếp vào Kệ A, B (Trọng số 40)
-    $brandRank = array_search(strtolower($brand_name), array_map('strtolower', $topBrands));
-    if ($brandRank === 0 && strtoupper($slot['shelf_name']) === 'KỆ A') {
-        $score += 40; // Brand bán chạy nhất nằm ở Kệ A
-    } else if ($brandRank === 1 && strtoupper($slot['shelf_name']) === 'KỆ B') {
-        $score += 30; // Brand top 2 ở Kệ B
-    } else if (strtoupper($slot['shelf_name']) === 'KỆ A') {
-        $score += 15; // Mặc định Kệ A có điểm vị trí cao hơn
-    }
-
-    // 2. Tiêu chí 2: Độ gom hàng / Gom cùng mẫu (Trọng số 30)
-    if ($slot['var_count'] > 0) {
-        $score += 30; // Đã chứa sẵn mẫu này trong ô
+    if ((int)$slot['var_count'] > 0) {
+        $affinity = 100.0;
+        $affinityReason = 'Ô đang chứa đúng biến thể này';
+    } elseif (!empty($slot['has_same_product_on_shelf'])) {
+        $affinity = 60.0;
+        $affinityReason = 'Cùng kệ đang có biến thể khác của sản phẩm';
     } else {
-        $score += 10; // Ô trống hoàn toàn
+        $affinity = 30.0;
+        $affinityReason = 'Ô mới hoặc chưa có sản phẩm liên quan';
     }
 
-    // 3. Tiêu chí 3: Sức chứa còn trống (Trọng số 20)
-    $capacityRatio = $slot['max'] > 0 ? ($slot['available'] / $slot['max']) : 0;
-    $score += ($capacityRatio * 20);
+    $velocity = max(0.0, min(100.0, (float)($slot['velocity_score'] ?? 50.0)));
+    if (!empty($slot['velocity_is_default'])) {
+        $velocityReason = 'Chưa có lịch sử xuất, dùng điểm mặc định 50/100';
+    } elseif ($velocity >= 100) {
+        $velocityReason = 'Kệ có lượng xuất cao nhất trong 30 ngày';
+    } else {
+        $velocityReason = "Điểm tốc độ xuất 30 ngày: " . round($velocity, 2) . '/100';
+    }
+    $capacity = (int)$slot['max'] > 0
+        ? ((int)$slot['available_space'] / (int)$slot['max']) * 100.0
+        : 0.0;
+    $capacityReason = "Trống {$slot['available_space']}/{$slot['max']} đôi";
 
-    // 4. Tiêu chí 4: Ergonomics - Vị trí Tầng dễ lấy hàng (Trọng số 10)
-    $tierUpper = strtoupper($slot['tier']);
-    if (in_array($tierUpper, ['T2', 'T3'])) {
-        $score += 10; // Tầm tay chuẩn
-    } else if ($tierUpper === 'T1') {
-        $score += 7;  // Khom lưng
-    } else if ($tierUpper === 'T4') {
-        $score += 5;  // Với cao
+    $normalizedTier = 'T' . ltrim(strtoupper(trim((string)$slot['tier'])), 'T');
+    if (in_array($normalizedTier, ['T2', 'T3'], true)) {
+        $ergonomics = 100.0;
+        $ergonomicsReason = 'Tầng vừa tầm tay, thao tác thuận tiện';
+    } elseif ($normalizedTier === 'T1') {
+        $ergonomics = 70.0;
+        $ergonomicsReason = 'Tầng thấp, cần khom người';
+    } elseif ($normalizedTier === 'T4') {
+        $ergonomics = 50.0;
+        $ergonomicsReason = 'Tầng cao, cần với tay';
+    } else {
+        $ergonomics = 40.0;
+        $ergonomicsReason = 'Tầng ngoài vùng thao tác tiêu chuẩn';
     }
 
-    return $score;
+    $weighted = [
+        'affinity' => round(0.35 * $affinity, 2),
+        'velocity' => round(0.35 * $velocity, 2),
+        'capacity' => round(0.20 * $capacity, 2),
+        'ergonomics' => round(0.10 * $ergonomics, 2)
+    ];
+
+    $topComponent = array_search(max($weighted), $weighted, true);
+    $reasonMap = [
+        'affinity' => $affinity >= 100 ? 'Gom cùng biến thể trong một ô' : 'Gom cùng sản phẩm trên một kệ',
+        'velocity' => $velocity >= 100 ? 'Kệ xuất nhanh nhất 30 ngày' : 'Kệ có tần suất xuất tốt',
+        'capacity' => 'Ô còn nhiều sức chứa',
+        'ergonomics' => 'Tầng dễ thao tác'
+    ];
+
+    return [
+        'total' => round(array_sum($weighted), 2),
+        'top_reason' => $reasonMap[$topComponent] ?? 'Cân bằng các tiêu chí lưu kho',
+        'affinity' => ['label' => 'Độ gom hàng', 'raw' => round($affinity, 2), 'weight' => 35, 'weighted' => $weighted['affinity'], 'reason' => $affinityReason],
+        'velocity' => ['label' => 'Tần suất xuất kệ', 'raw' => round($velocity, 2), 'weight' => 35, 'weighted' => $weighted['velocity'], 'reason' => $velocityReason],
+        'capacity' => ['label' => 'Sức chứa trống', 'raw' => round($capacity, 2), 'weight' => 20, 'weighted' => $weighted['capacity'], 'reason' => $capacityReason],
+        'ergonomics' => ['label' => 'Tầm với tầng', 'raw' => round($ergonomics, 2), 'weight' => 10, 'weighted' => $weighted['ergonomics'], 'reason' => $ergonomicsReason]
+    ];
 }
 
 /**
-     * Chức năng: Lấy danh sách Top Thương hiệu/Danh mục xuất kho nhiều nhất 30 ngày qua
+     * Tính velocity theo lượng xuất thực tế tại từng kệ trong 30 ngày gần nhất.
+     * Bảng transactions không có shelf_id nên vị trí được đọc từ ticket_details.note.
      */
-    private function getTopSellingBrands()
+    private function getShelfVelocityScores()
     {
-        $sql = "SELECT c.category_name, SUM(t.quantity) as total_qty
-                FROM transactions t
-                JOIN product_variants pv ON t.variant_id = pv.variant_id
-                JOIN products p ON pv.product_id = p.product_id
-                JOIN categories c ON p.category_id = c.category_id
-                WHERE t.transaction_type = 'EXPORT' 
-                  AND t.created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
-                GROUP BY c.category_name
-                ORDER BY total_qty DESC
-                LIMIT 5";
+        $sql = "SELECT td.detail_id, td.note
+                FROM ticket_details td
+                JOIN tickets tk ON tk.ticket_id = td.ticket_id
+                WHERE tk.ticket_type = 'EXPORT'
+                  AND EXISTS (
+                      SELECT 1
+                      FROM transactions tr
+                      WHERE tr.reference_id = tk.ticket_code
+                        AND tr.variant_id = td.variant_id
+                        AND tr.transaction_type = 'EXPORT'
+                        AND tr.created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
+                  )
+                  AND td.note IS NOT NULL
+                  AND BTRIM(td.note) <> ''";
 
         $res = @pg_query($this->conn, $sql);
-        $topBrands = [];
+        $exportedByShelf = [];
         if ($res) {
             while ($row = pg_fetch_assoc($res)) {
-                $topBrands[] = $row['category_name'];
+                $locations = json_decode($row['note'], true);
+                if (!is_array($locations)) continue;
+
+                foreach ($locations as $location) {
+                    $shelfId = $location['shelf_id'] ?? null;
+                    $qty = max(0, (int)($location['qty'] ?? 0));
+                    if (!is_numeric($shelfId) || (int)$shelfId <= 0 || $qty <= 0) continue;
+
+                    $key = (string)(int)$shelfId;
+                    $exportedByShelf[$key] = ($exportedByShelf[$key] ?? 0) + $qty;
+                }
             }
         }
-        return $topBrands;
+
+        $maxExported = empty($exportedByShelf) ? 0 : max($exportedByShelf);
+        if ($maxExported <= 0) return ['__default' => 50.0];
+
+        $scores = ['__default' => 0.0];
+        foreach ($exportedByShelf as $shelfId => $exportedQty) {
+            $scores[$shelfId] = round(($exportedQty / $maxExported) * 100.0, 2);
+        }
+        return $scores;
     }
 }
