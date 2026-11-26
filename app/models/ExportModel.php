@@ -57,8 +57,11 @@ class ExportModel
             FROM public.shelves s,
                  jsonb_each(s.layout) AS tier,
                  jsonb_each(tier.value) AS slot,
-                 jsonb_array_elements_text(slot.value) AS item
-            WHERE item.value = $1::text
+                 jsonb_array_elements(slot.value) AS item
+            WHERE (CASE
+                    WHEN jsonb_typeof(item.value) = 'object' THEN item.value->>'variant_id'
+                    ELSE item.value #>> '{}'
+                   END) = $1::text
               AND s.is_deleted = true
               AND s.status = true
             GROUP BY s.shelf_id, s.shelf_name, s.max_capacity_per_slot, tier.key, slot.key
@@ -323,7 +326,8 @@ class ExportModel
                         $removed_in_slot = 0;
 
                         foreach ($items as $key => $val) {
-                            if ($val == $variant_id && $removed_in_slot < $qty_to_remove) {
+                            $itemVid = is_array($val) ? ($val['variant_id'] ?? null) : $val;
+                            if ($itemVid == $variant_id && $removed_in_slot < $qty_to_remove) {
                                 unset($items[$key]);
                                 $removed_in_slot++;
                                 $total_removed++;
@@ -364,7 +368,8 @@ class ExportModel
                     if ($total_to_remove <= 0) break;
                     $slotChanged = false;
                     foreach ($items as $key => $val) {
-                        if ($val == $variant_id && $total_to_remove > 0) {
+                        $itemVid = is_array($val) ? ($val['variant_id'] ?? null) : $val;
+                        if ($itemVid == $variant_id && $total_to_remove > 0) {
                             unset($items[$key]);
                             $total_to_remove--;
                             $slotChanged = true;

@@ -103,7 +103,8 @@ class WarehouseController
                 foreach ($slots as $arr) {
                     $shelfCap += $slotMax;
                     $shelfLoad += count($arr);
-                    foreach ($arr as $vid) {
+                    foreach ($arr as $shoeItem) {
+                        $vid = is_array($shoeItem) ? (int)($shoeItem['variant_id'] ?? 0) : (int)$shoeItem;
                         $bName = $brandMap[$vid] ?? 'Khác';
                         $brandCounts[$bName] = ($brandCounts[$bName] ?? 0) + 1;
                     }
@@ -162,8 +163,10 @@ class WarehouseController
                 $layout = json_decode($s['layout'], true) ?: [];
                 foreach ($layout as $tier => $slots) {
                     foreach ($slots as $slotKey => $arr) {
-                        // Ép kiểu các ID trong ô kệ sang số nguyên để in_array chạy chuẩn
-                        $arrInt = array_map('intval', $arr);
+                        // Ép kiểu các ID trong ô kệ sang số nguyên (hỗ trợ cả scalar và object)
+                        $arrInt = array_map(function ($shoeItem) {
+                            return is_array($shoeItem) ? (int)($shoeItem['variant_id'] ?? 0) : (int)$shoeItem;
+                        }, $arr);
                         if (in_array($vid, $arrInt)) {
                             // Nếu tìm thấy, nạp tọa độ vào (Ví dụ: A1-01)
                             $cells[] = "{$s['shelf_name']}_{$tier}-{$slotKey}";

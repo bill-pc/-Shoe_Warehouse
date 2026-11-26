@@ -88,10 +88,13 @@ class ImportModel
 
 
     /**
-     * Chức năng Helper: Nhét mã variant_id vào mảng JSON của kệ tương ứng.
+     * Chức năng Helper: Nhét thông tin biến thể (variant_id, ticket_id, created_at) vào mảng JSON của kệ tương ứng.
      */
-    private function addItemsToShelves($locations)
+    private function addItemsToShelves($locations, $ticket_id = null, $created_at = null)
     {
+        $savedAt = $created_at ?: date('Y-m-d H:i:s');
+        $ticketIdVal = $ticket_id !== null ? (int)$ticket_id : null;
+
         $grouped = [];
         foreach ($locations as $loc) {
             $grouped[$loc['shelf_id']][] = $loc;
@@ -107,12 +110,16 @@ class ImportModel
                     $tier = $loc['tier'];
                     $slot = $loc['slot'];
                     $qty = (int)$loc['qty'];
-                    $vid = (string)$loc['variant_id'];
+                    $vid = (int)$loc['variant_id'];
 
                     if (!isset($layout[$tier][$slot])) $layout[$tier][$slot] = [];
 
                     for ($i = 0; $i < $qty; $i++) {
-                        $layout[$tier][$slot][] = $vid;
+                        $layout[$tier][$slot][] = [
+                            'variant_id' => $vid,
+                            'ticket_id'  => $ticketIdVal,
+                            'created_at' => $savedAt,
+                        ];
                         $changed = true;
                     }
                 }
@@ -168,9 +175,9 @@ class ImportModel
                     // 🚀 Thay thế "TICKET-$ticket_id" thành $ticket_code
                     pg_query_params($this->conn, "INSERT INTO transactions (transaction_type, variant_id, quantity, user_id, reference_id) VALUES ('IMPORT', $1, $2, $3, $4)", [$v_id, $qty, $user_id, $ticket_code]);
 
-                    // Đẩy giày vào các ô kệ đã chọn
+                    // Đẩy giày vào các ô kệ đã chọn (kèm ticket_id và ngày lưu created_at)
                     if (count($locations) > 0) {
-                        $this->addItemsToShelves($locations);
+                        $this->addItemsToShelves($locations, $ticket_id, date('Y-m-d H:i:s'));
                     }
                 }
             }
@@ -359,7 +366,8 @@ class ImportModel
                 foreach ($layout as $shelfSlots) {
                     foreach ($shelfSlots as $shelfItems) {
                         foreach ($shelfItems as $shelfItem) {
-                            if (isset($siblingVariantIds[(string)$shelfItem])) {
+                            $itemVid = is_array($shelfItem) ? (string)($shelfItem['variant_id'] ?? '') : (string)$shelfItem;
+                            if ($itemVid !== '' && isset($siblingVariantIds[$itemVid])) {
                                 $shelfHasSameProduct = true;
                                 break 3;
                             }
@@ -375,7 +383,8 @@ class ImportModel
 
                         $varCount = 0;
                         foreach ($items as $item) {
-                            if ((string)$item === (string)$variant_id) $varCount++;
+                            $itemVid = is_array($item) ? (string)($item['variant_id'] ?? '') : (string)$item;
+                            if ($itemVid === (string)$variant_id) $varCount++;
                         }
 
                         $availableQty = max(0, $max - $currentQty - $reservedQty);

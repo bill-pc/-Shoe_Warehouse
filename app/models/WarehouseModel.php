@@ -181,8 +181,12 @@ class WarehouseModel
                 foreach ($slots as $slotKey => $shoesArray) {
                     if (!is_array($shoesArray) || empty($shoesArray)) continue;
 
-                    // Đếm số lượng từng loại giày trong ô
-                    $counts = array_count_values($shoesArray);
+                    // Đếm số lượng từng loại giày trong ô (hỗ trợ cả định dạng cũ scalar và định dạng mới object)
+                    $counts = [];
+                    foreach ($shoesArray as $shoeItem) {
+                        $vid = is_array($shoeItem) ? (int)($shoeItem['variant_id'] ?? 0) : (int)$shoeItem;
+                        if ($vid > 0) $counts[$vid] = ($counts[$vid] ?? 0) + 1;
+                    }
                     foreach ($counts as $vid => $qty) {
                         if (!isset($locationMap[$vid])) $locationMap[$vid] = [];
                         $locationMap[$vid][] = [
@@ -251,8 +255,11 @@ class WarehouseModel
         if (!isset($shelves[$f_shelf][$f_tier][$f_slot])) $shelves[$f_shelf][$f_tier][$f_slot] = [];
         $sourceArr = &$shelves[$f_shelf][$f_tier][$f_slot];
 
-        $sourceCounts = array_count_values($sourceArr);
-        $availableQty = $sourceCounts[$variant_id] ?? 0;
+        $availableQty = 0;
+        foreach ($sourceArr as $shoeItem) {
+            $itemVid = is_array($shoeItem) ? (int)($shoeItem['variant_id'] ?? 0) : (int)$shoeItem;
+            if ($itemVid === (int)$variant_id) $availableQty++;
+        }
 
         if ($availableQty < $totalQty) {
             throw new Exception("Ô nguồn $from_loc chỉ có $availableQty đôi, không đủ $totalQty đôi để chuyển.");
@@ -280,17 +287,19 @@ class WarehouseModel
             }
         }
 
-        // 7. THỰC THI: Rút giày khỏi ô nguồn
-        $removed = 0;
-        foreach ($sourceArr as $idx => $vid) {
-            if ($vid == $variant_id && $removed < $totalQty) {
+        // 7. THỰC THI: Rút giày khỏi ô nguồn (giữ nguyên thông tin ticket_id, created_at nếu có)
+        $movedItems = [];
+        foreach ($sourceArr as $idx => $shoeItem) {
+            $itemVid = is_array($shoeItem) ? (int)($shoeItem['variant_id'] ?? 0) : (int)$shoeItem;
+            if ($itemVid === (int)$variant_id && count($movedItems) < $totalQty) {
+                $movedItems[] = $shoeItem;
                 unset($sourceArr[$idx]);
-                $removed++;
             }
         }
         $sourceArr = array_values($sourceArr); // Re-index mảng liên tục
 
         // 8. THỰC THI: Bơm giày vào các ô đích
+        $moveCursor = 0;
         foreach ($destinations as $dest) {
             preg_match('/^(.+)_(\d+)-(\d{2})$/', $dest['loc'], $t_match);
             $t_shelf = $t_match[1];
@@ -300,7 +309,8 @@ class WarehouseModel
 
             $destArrRef = &$shelves[$t_shelf][$t_tier][$t_slot];
             for ($i = 0; $i < $qtyToMove; $i++) {
-                $destArrRef[] = (int)$variant_id;
+                $destArrRef[] = $movedItems[$moveCursor] ?? (int)$variant_id;
+                $moveCursor++;
             }
         }
 
