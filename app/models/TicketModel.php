@@ -96,50 +96,77 @@ class TicketModel
 
 
     /**
-     * Chức năng: Tìm kiếm các sản phẩm sắp hết hàng.
-     * Tác dụng: Hiển thị gợi ý nhắc nhở nhập kho nếu số lượng tồn kho dưới 5 đôi.
+     * Chức năng: Tìm kiếm các sản phẩm sắp hết hàng / hết hàng theo thuật toán động 30 ngày.
+     * Tác dụng: Hiển thị gợi ý nhắc nhở nhập kho dựa trên lịch sử xuất kho 30 ngày gần nhất.
      */
     public function getLowStockSuggestions()
     {
-        // NẠP ĐỘNG STOCK CONFIG
-        $stockConfig = require __DIR__ . '/../../config/stockconfig.php';
-        $threshold = (int)$stockConfig['low_stock_threshold'];
+        require_once __DIR__ . '/../../config/stockconfig.php';
+        $exportSubquery = getExport30DaysSqlSubquery();
 
-        $sql = "SELECT pv.variant_id, c.category_name as brand, p.product_name, p.product_image, pv.color, pv.size, pv.stock
-            FROM product_variants pv
-            JOIN products p ON pv.product_id = p.product_id
-            JOIN categories c ON p.category_id = c.category_id
-            WHERE pv.stock < $threshold AND pv.is_deleted = false AND p.is_deleted = false
-            ORDER BY pv.stock ASC";
+        $sql = "SELECT pv.variant_id, pv.sku, c.category_name as brand, p.product_name, p.product_image,
+                       pv.color, pv.size, pv.stock,
+                       COALESCE(exp30.total_export_30d, 0) AS total_export_30d
+                FROM product_variants pv
+                JOIN products p ON pv.product_id = p.product_id
+                JOIN categories c ON p.category_id = c.category_id
+                LEFT JOIN ({$exportSubquery}) exp30 ON pv.variant_id = exp30.variant_id
+                WHERE pv.is_deleted = false AND p.is_deleted = false AND c.is_deleted = false
+                ORDER BY pv.stock ASC";
 
         $result = pg_query($this->conn, $sql);
-        return $result ? (pg_fetch_all($result) ?: []) : [];
+        $rows = $result ? (pg_fetch_all($result) ?: []) : [];
+
+        $suggestions = [];
+        foreach ($rows as $row) {
+            $metrics = calculateSmartStockMetrics($row['stock'], $row['total_export_30d']);
+            if ($metrics['is_warning']) {
+                $suggestions[] = array_merge($row, $metrics);
+            }
+        }
+        return $suggestions;
     }
 
 
     /**
-     * Chức năng: Lấy danh sách Biến thể (Màu, Size) của một Mẫu giày.
+     * Chức năng: Lấy danh sách Biến thể (Màu, Size) của một Mẫu giày kèm thông số đề xuất thông minh 30 ngày.
      * Tác dụng: Dùng để người quản lý chọn đưa vào phiếu. Nếu là phiếu XUẤT, sẽ trừ đi số hàng đã bị đặt trước (reserved_stock).
      */
     public function getVariantsByProduct($product_id, $type = '')
     {
+        require_once __DIR__ . '/../../config/stockconfig.php';
+        $exportSubquery = getExport30DaysSqlSubquery();
+
         if ($type === 'EXPORT') {
-            $sql = "SELECT pv.variant_id, pv.color, pv.size, 
+            $sql = "SELECT pv.variant_id, pv.sku, pv.color, pv.size, 
                            (pv.stock - COALESCE(pv.reserved_stock, 0)) AS stock, 
-                           p.product_image 
+                           pv.stock AS physical_stock,
+                           p.product_image,
+                           COALESCE(exp30.total_export_30d, 0) AS total_export_30d
                     FROM product_variants pv
                     JOIN products p ON pv.product_id = p.product_id
+                    LEFT JOIN ({$exportSubquery}) exp30 ON pv.variant_id = exp30.variant_id
                     WHERE pv.product_id = $1 AND pv.is_deleted = false 
                       AND (pv.stock - COALESCE(pv.reserved_stock, 0)) > 0";
         } else {
-            $sql = "SELECT pv.variant_id, pv.color, pv.size, pv.stock, p.product_image 
+            $sql = "SELECT pv.variant_id, pv.sku, pv.color, pv.size, pv.stock, p.product_image,
+                           COALESCE(exp30.total_export_30d, 0) AS total_export_30d
                     FROM product_variants pv
                     JOIN products p ON pv.product_id = p.product_id
+                    LEFT JOIN ({$exportSubquery}) exp30 ON pv.variant_id = exp30.variant_id
                     WHERE pv.product_id = $1 AND pv.is_deleted = false";
         }
 
         $result = pg_query_params($this->conn, $sql, [$product_id]);
-        return $result ? (pg_fetch_all($result) ?: []) : [];
+        $rows = $result ? (pg_fetch_all($result) ?: []) : [];
+
+        foreach ($rows as &$row) {
+            $metrics = calculateSmartStockMetrics($row['stock'], $row['total_export_30d']);
+            $row = array_merge($row, $metrics);
+        }
+        unset($row);
+
+        return $rows;
     }
 
     /**
@@ -308,7 +335,8 @@ class TicketModel
                     td.detail_id,       
                     td.variant_id,      
                     td.quantity, 
-                    COALESCE(td.processed_qty, 0) as processed_qty, 
+                    COALESCE(tit.actual_qty, td.processed_qty, 0) as processed_qty, 
+                    tit.temp_id,
                     td.note,
                     td.is_diff,      
                     td.qr_code,  

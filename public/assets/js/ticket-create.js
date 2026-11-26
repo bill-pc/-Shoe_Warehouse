@@ -21,6 +21,9 @@ document.addEventListener('DOMContentLoaded', function () {
             varSelect.innerHTML = '<option value="">Chọn Mẫu trước</option>';
             varSelect.disabled = true;
 
+            let infoBox = newRow.querySelector('.smart-stock-info');
+            if (infoBox) infoBox.innerHTML = '';
+
             newRow.querySelector('input[type="number"]').value = '';
 
             // Nối dòng mới vào bảng
@@ -31,14 +34,134 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // 2. Alert Confirm trước khi submit form tạo phiếu
+    // 2. Alert Confirm & Cảnh báo thông minh trước khi submit form tạo phiếu
     const ticketForm = document.getElementById('ticketForm');
     if (ticketForm) {
         ticketForm.addEventListener('submit', function (e) {
+            const ticketTypeInput = document.querySelector('input[name="ticket_type"]');
+            const ticketType = ticketTypeInput ? ticketTypeInput.value : 'IMPORT';
+            const rows = document.querySelectorAll('#detailTable tbody tr');
+            const warningMessages = [];
+
+            for (const row of rows) {
+                const varSelect = row.querySelector('.variant-select');
+                const qtyInput = row.querySelector('input[name="quantity[]"]');
+                if (!varSelect || !qtyInput || !varSelect.value) continue;
+
+                const opt = varSelect.options[varSelect.selectedIndex];
+                if (!opt) continue;
+
+                const qty = parseInt(qtyInput.value, 10) || 0;
+                const currentStock = parseInt(opt.dataset.stock, 10) || 0;
+                const hasEnoughData = opt.dataset.hasEnoughData === '1';
+                const minStock = opt.dataset.minStock !== '' && opt.dataset.minStock !== undefined ? parseInt(opt.dataset.minStock, 10) : null;
+                const suggestedImport = opt.dataset.suggestedImport !== '' && opt.dataset.suggestedImport !== undefined ? parseInt(opt.dataset.suggestedImport, 10) : null;
+                const label = opt.dataset.label || opt.textContent.trim();
+
+                if (ticketType === 'EXPORT') {
+                    // Không cho phép xuất vượt quá số lượng tồn kho thực tế khả dụng
+                    if (qty > currentStock) {
+                        alert(`LỖI: Biến thể "${label}" chỉ còn ${currentStock} đôi khả dụng, không thể xuất ${qty} đôi!`);
+                        e.preventDefault();
+                        qtyInput.focus();
+                        return;
+                    }
+                    const remainingStock = currentStock - qty;
+                    if (hasEnoughData && minStock !== null && remainingStock <= minStock) {
+                        warningMessages.push(
+                            `[${label}] Cảnh báo: Sau khi xuất kho, tồn kho của biến thể này sẽ còn ${remainingStock} đôi, thấp hơn hoặc bằng ngưỡng cảnh báo ${minStock} đôi.`
+                        );
+                    }
+                } else if (ticketType === 'IMPORT') {
+                    if (hasEnoughData && suggestedImport !== null && qty > suggestedImport) {
+                        warningMessages.push(
+                            `[${label}] Cảnh báo: Số lượng nhập vượt mức đề xuất của hệ thống. Số lượng đề xuất: ${suggestedImport} đôi. Số lượng bạn đang nhập: ${qty} đôi. Bạn có chắc chắn muốn tiếp tục?`
+                        );
+                    }
+                }
+            }
+
+            if (warningMessages.length > 0) {
+                const confirmMsg = warningMessages.join('\n\n');
+                if (!confirm(confirmMsg)) {
+                    e.preventDefault();
+                    return;
+                }
+            }
+
             if (!confirm('Bạn có chắc chắn muốn LƯU phiếu này không? Dữ liệu phiếu sẽ không thể chỉnh sửa sau khi lưu.')) {
                 e.preventDefault();
             }
         });
+    }
+
+    // Hàm cập nhật thông tin cảnh báo & đề xuất thông minh cho từng dòng
+    function updateRowSmartStockInfo(row) {
+        const varSelect = row.querySelector('.variant-select');
+        const qtyInput = row.querySelector('input[name="quantity[]"]');
+        const infoBox = row.querySelector('.smart-stock-info');
+        if (!varSelect || !infoBox) return;
+
+        if (!varSelect.value) {
+            infoBox.innerHTML = '';
+            return;
+        }
+
+        const opt = varSelect.options[varSelect.selectedIndex];
+        if (!opt) {
+            infoBox.innerHTML = '';
+            return;
+        }
+
+        const ticketType = (document.querySelector('input[name="ticket_type"]') || {}).value || 'IMPORT';
+        const currentStock = parseInt(opt.dataset.stock, 10) || 0;
+        const export30d = parseInt(opt.dataset.export30d, 10) || 0;
+        const hasEnoughData = opt.dataset.hasEnoughData === '1';
+        const minStock = opt.dataset.minStock !== '' && opt.dataset.minStock !== undefined ? parseInt(opt.dataset.minStock, 10) : null;
+        const suggestedImport = opt.dataset.suggestedImport !== '' && opt.dataset.suggestedImport !== undefined ? parseInt(opt.dataset.suggestedImport, 10) : null;
+        const qty = qtyInput && qtyInput.value !== '' ? (parseInt(qtyInput.value, 10) || 0) : null;
+
+        if (ticketType === 'IMPORT') {
+            if (!hasEnoughData) {
+                infoBox.innerHTML = `
+                    <div class="p-2 rounded bg-light border mt-1">
+                        <div>Tồn kho hiện tại: <strong>${currentStock} đôi</strong> | Xuất 30 ngày: <strong>0 đôi</strong></div>
+                        <div>Trạng thái: <span class="badge bg-secondary">Chưa đủ dữ liệu</span> <span class="text-muted">(không tự động đề xuất)</span></div>
+                    </div>`;
+                return;
+            }
+
+            let warnHtml = '';
+            if (qty !== null && suggestedImport !== null && qty > suggestedImport) {
+                warnHtml = `<div class="text-danger fw-bold mt-1"><i class="fas fa-exclamation-triangle me-1"></i>Vượt mức đề xuất (${qty} &gt; ${suggestedImport} đôi).</div>`;
+            }
+
+            infoBox.innerHTML = `
+                <div class="p-2 rounded bg-light border mt-1">
+                    <div>Tồn kho hiện tại: <strong>${currentStock} đôi</strong> | Xuất 30 ngày: <strong>${export30d} đôi</strong></div>
+                    <div>Đề xuất nhập: <strong class="text-primary">${suggestedImport} đôi</strong> (Ngưỡng thấp: ${minStock})</div>
+                    ${warnHtml}
+                </div>`;
+        } else {
+            // EXPORT
+            const remaining = qty !== null ? (currentStock - qty) : currentStock;
+            let warnHtml = '';
+            if (qty !== null && qty > currentStock) {
+                warnHtml = `<div class="text-danger fw-bold mt-1"><i class="fas fa-times-circle me-1"></i>Vượt quá tồn kho khả dụng (${currentStock} đôi)!</div>`;
+            } else if (qty !== null && hasEnoughData && minStock !== null && remaining <= minStock) {
+                warnHtml = `<div class="text-warning text-dark fw-bold mt-1"><i class="fas fa-exclamation-triangle me-1"></i>Sau khi xuất còn <strong>${remaining} đôi</strong> (&le; ngưỡng cảnh báo ${minStock} đôi).</div>`;
+            }
+
+            const minText = hasEnoughData ? `<strong>${minStock} đôi</strong>` : `<span class="badge bg-secondary">Chưa đủ dữ liệu</span>`;
+            const remText = qty !== null ? ` | Dự kiến sau xuất: <strong class="${remaining <= (minStock ?? -1) ? 'text-danger' : 'text-success'}">${remaining} đôi</strong>` : '';
+
+            infoBox.innerHTML = `
+                <div class="p-2 rounded bg-light border mt-1">
+                    <div>Tồn hiện tại: <strong>${currentStock} đôi</strong> | Xuất 30 ngày: <strong>${export30d} đôi</strong></div>
+                    <div>Ngưỡng cảnh báo thấp: ${minText}${remText}</div>
+                    ${warnHtml}
+                </div>`;
+        }
     }
 
     // 3. Xử lý AJAX liên hoàn Dropdowns (Hãng -> Mẫu -> Biến thể)
@@ -55,7 +178,19 @@ document.addEventListener('DOMContentLoaded', function () {
         let brandSelect = row.querySelector('.brand-select');
         let prodSelect = row.querySelector('.product-select');
         let varSelect = row.querySelector('.variant-select');
+        let qtyInput = row.querySelector('input[name="quantity[]"]');
+        let infoBox = row.querySelector('.smart-stock-info');
         let imgPreview = row.querySelector('.img-preview'); // Bắt thẻ ảnh
+
+        // Khi chọn Biến thể hoặc thay đổi số lượng -> cập nhật thông tin cảnh báo/đề xuất
+        varSelect.addEventListener('change', function () {
+            updateRowSmartStockInfo(row);
+        });
+        if (qtyInput) {
+            qtyInput.addEventListener('input', function () {
+                updateRowSmartStockInfo(row);
+            });
+        }
 
         // Khi chọn Hãng (Brand) -> Load danh sách Mẫu giày
         brandSelect.addEventListener('change', function () {
@@ -63,6 +198,7 @@ document.addEventListener('DOMContentLoaded', function () {
             prodSelect.innerHTML = '<option value="">Đang tải...</option>';
             varSelect.innerHTML = '<option value="">Chọn Mẫu trước</option>';
             varSelect.disabled = true;
+            if (infoBox) infoBox.innerHTML = '';
 
             // Nếu đổi hãng thì reset ảnh
             if (imgPreview) imgPreview.src = 'assets/images/placeholder.png';
@@ -86,6 +222,7 @@ document.addEventListener('DOMContentLoaded', function () {
         prodSelect.addEventListener('change', function () {
             let prodId = this.value;
             varSelect.innerHTML = '<option value="">Đang tải...</option>';
+            if (infoBox) infoBox.innerHTML = '';
 
             // Lấy loại phiếu từ input hidden trong form
             let ticketType = document.querySelector('input[name="ticket_type"]').value;
@@ -111,7 +248,17 @@ document.addEventListener('DOMContentLoaded', function () {
                         } else {
                             data.forEach(v => {
                                 let stockInfo = `(Tồn: ${v.stock})`;
-                                varSelect.innerHTML += `<option value="${v.variant_id}">${v.color} - Size ${v.size} ${stockInfo}</option>`;
+                                const opt = document.createElement('option');
+                                opt.value = v.variant_id;
+                                opt.textContent = `${v.color} - Size ${v.size} ${stockInfo}`;
+                                opt.dataset.stock = v.stock ?? 0;
+                                opt.dataset.export30d = v.total_export_30d ?? 0;
+                                opt.dataset.minStock = v.min_stock !== null && v.min_stock !== undefined ? v.min_stock : '';
+                                opt.dataset.targetStock = v.target_stock !== null && v.target_stock !== undefined ? v.target_stock : '';
+                                opt.dataset.suggestedImport = v.suggested_import !== null && v.suggested_import !== undefined ? v.suggested_import : '';
+                                opt.dataset.hasEnoughData = v.has_enough_data ? '1' : '0';
+                                opt.dataset.label = `${v.color} - Size ${v.size}`;
+                                varSelect.appendChild(opt);
                             });
                         }
                     });

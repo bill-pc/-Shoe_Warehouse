@@ -14,6 +14,100 @@ const importMinScore = (window.AI_MATCHING && window.AI_MATCHING.min_similarity 
 const importHighScore = (window.AI_MATCHING && window.AI_MATCHING.high_similarity !== undefined) ? window.AI_MATCHING.high_similarity : 95;
 
 document.getElementById('addProductModal').addEventListener('show.bs.modal', loadMyImportTickets);
+document.getElementById('addProductModal').addEventListener('hidden.bs.modal', resetImportModal);
+
+function resetImportModal() {
+    if (currentImportTicketId) {
+        fetch(`index.php?page=tickets&action=update_status&ticket_id=${currentImportTicketId}&status=PAUSED`, { method: 'POST' });
+    }
+
+    currentImportTicketId = null;
+    currentImportTicketCode = "";
+    importTicketItems = [];
+    importScannedData = [];
+    importSelectedFiles = [];
+    activeScannedIndex = -1;
+    window.currentMatchedItems = null;
+
+    // Reset giao diện cột trái
+    const step1 = document.getElementById('import_step_1');
+    const step2 = document.getElementById('import_step_2');
+    const ticketItems = document.getElementById('import_ticket_items');
+    const ticketCodeEl = document.getElementById('import_current_ticket_code');
+    const completeBtn = document.getElementById('btn_complete_import');
+
+    if (step1) step1.classList.remove('d-none');
+    if (step2) step2.classList.add('d-none');
+    if (ticketItems) ticketItems.innerHTML = '';
+    if (ticketCodeEl) ticketCodeEl.innerText = 'MÃ PHIẾU: ...';
+    if (completeBtn) completeBtn.classList.add('d-none');
+
+    // Reset Tabs
+    const tabsHeader = document.getElementById('import_tabs_header');
+    if (tabsHeader) tabsHeader.classList.add('d-none');
+    switchImportTab('ai');
+
+    // Reset AI upload zone
+    const fileInput = document.getElementById('ai_import_files');
+    if (fileInput) fileInput.value = '';
+    const preview = document.getElementById('import_pre_scan_preview');
+    if (preview) preview.innerHTML = '';
+    const postScan = document.getElementById('import_post_scan_area');
+    if (postScan) postScan.innerHTML = '';
+    const scanBtn = document.getElementById('btn-scan-import');
+    if (scanBtn) {
+        scanBtn.classList.add('d-none');
+        scanBtn.disabled = false;
+        scanBtn.innerHTML = '<i class="fas fa-magic me-1"></i>QUÉT AI';
+    }
+    const uploadZone = document.getElementById('import_ai_upload_zone');
+    if (uploadZone) uploadZone.classList.add('d-none');
+
+    // Reset Form AI
+    const formAi = document.getElementById('form_temp_import');
+    if (formAi) formAi.reset();
+    const formZone = document.getElementById('import_form_zone');
+    if (formZone) {
+        formZone.classList.remove('d-flex');
+        formZone.classList.add('d-none');
+    }
+    const colorSelect = document.getElementById('import_color');
+    if (colorSelect) colorSelect.innerHTML = '';
+    const sizeSelect = document.getElementById('import_size');
+    if (sizeSelect) {
+        sizeSelect.innerHTML = '<option value="">-- Chọn màu trước --</option>';
+        sizeSelect.disabled = true;
+    }
+    const badgeAi = document.getElementById('import_status_badge');
+    if (badgeAi) {
+        badgeAi.className = 'badge bg-secondary w-100 p-2';
+        badgeAi.innerText = 'CHƯA NHẬP DỮ LIỆU';
+    }
+
+    // Reset Form Thủ công
+    const formManual = document.getElementById('form_temp_import_manual');
+    if (formManual) formManual.reset();
+    resetManualProductSelection();
+
+    // Reset Putaway containers
+    const putawayContainer = document.getElementById('putaway_locations_container');
+    if (putawayContainer) putawayContainer.remove();
+    const manualPutaway = document.getElementById('manual_putaway_locations_container');
+    if (manualPutaway) manualPutaway.innerHTML = '';
+
+    // Reset Suggestion container
+    const suggContainer = document.getElementById('import_suggestion_container');
+    if (suggContainer) suggContainer.innerHTML = '';
+
+    // Reset right default placeholder
+    const rightDefault = document.getElementById('import_right_default');
+    if (rightDefault) rightDefault.classList.remove('d-none');
+
+    // Bỏ tất cả highlight dòng
+    document.querySelectorAll('[id^="import_row_"]').forEach(el => {
+        el.classList.remove('bg-info', 'bg-opacity-25', 'border-info');
+    });
+}
 
 // 1. TẢI DANH SÁCH PHIẾU NHẬP ĐANG CHỜ
 async function loadMyImportTickets() {
@@ -74,6 +168,9 @@ async function openImportTicket(ticketId, ticketCode) {
     document.getElementById('import_step_2').classList.remove('d-none');
 
     document.getElementById('import_right_default').classList.add('d-none');
+    const tabsHeader = document.getElementById('import_tabs_header');
+    if (tabsHeader) tabsHeader.classList.remove('d-none');
+    switchImportTab('ai');
     document.getElementById('import_ai_upload_zone').classList.remove('d-none');
 
     fetch(`index.php?page=tickets&action=update_status&ticket_id=${ticketId}&status=PROCESSING`, { method: 'POST' });
@@ -93,6 +190,13 @@ async function loadImportTicketItems() {
 }
 
 // Render danh sách bên trái (Cột phiếu)
+// Một biến thể chỉ được coi là "đã xử lý" khi nhân viên đã bấm LƯU NHÁP BIẾN THỂ NÀY
+// (tồn tại bản ghi trong ticket_import_temp -> temp_id), hoặc đã có processed_qty > 0 (dữ liệu cũ).
+function isImportItemProcessed(item) {
+    if (!item) return false;
+    const hasTemp = item.temp_id !== null && item.temp_id !== undefined && item.temp_id !== '';
+    return hasTemp || (parseInt(item.processed_qty, 10) || 0) > 0;
+}
 // sửa hàm này kiểm tra dk biến allDone nếu muốn hiện nút lưu chốt khi nhập xong biến thể
 function renderImportItemsUI() {
     const container = document.getElementById('import_ticket_items');
@@ -101,17 +205,21 @@ function renderImportItemsUI() {
     container.innerHTML = importTicketItems.map(item => {
         const qty = parseInt(item.quantity);
         const processed = parseInt(item.processed_qty) || 0;
+        // Chỉ coi là đã xử lý khi đã bấm "Lưu nháp biến thể này" (có bản ghi tạm) hoặc đã nhập > 0
+        const isProcessed = isImportItemProcessed(item);
 
         let badgeClass = 'bg-danger';
         let statusTag = '';
 
-        if (processed > 0) {
+        if (isProcessed) {
             if (processed === qty) {
                 badgeClass = 'bg-success';
                 statusTag = '<span class="text-success small fw-bold"><i class="fas fa-check-circle"></i> ĐỦ HÀNG</span>';
             } else if (processed < qty) {
                 badgeClass = 'bg-warning text-dark';
-                statusTag = '<span class="text-warning small fw-bold"><i class="fas fa-exclamation-triangle"></i> THIẾU HÀNG</span>';
+                statusTag = processed === 0 
+                    ? '<span class="text-danger small fw-bold"><i class="fas fa-times-circle"></i> THIẾU TOÀN BỘ (0 ĐÔI)</span>'
+                    : '<span class="text-warning small fw-bold"><i class="fas fa-exclamation-triangle"></i> THIẾU HÀNG</span>';
             } else {
                 badgeClass = 'bg-info text-dark';
                 statusTag = '<span class="text-info small fw-bold"><i class="fas fa-exclamation-circle"></i> DƯ HÀNG</span>';
@@ -121,8 +229,8 @@ function renderImportItemsUI() {
         const isDone = processed >= qty;
         if (!isDone) allDone = false;
 
-        let rowClass = processed > 0 ? 'bg-success bg-opacity-10 border-secondary cursor-pointer' : 'bg-dark border-secondary';
-        let clickEvent = processed > 0 ? `onclick="editImportItem(${item.variant_id})"` : '';
+        let rowClass = isProcessed ? 'bg-success bg-opacity-10 border-secondary cursor-pointer' : 'bg-dark border-secondary';
+        let clickEvent = isProcessed ? `onclick="editImportItem(${item.variant_id})"` : '';
 
         // --- BỔ SUNG: IN RA THÔNG BÁO VỊ TRÍ KỆ ĐÃ LƯU BÊN DANH SÁCH ---
         let locationsHtml = '';
@@ -142,7 +250,7 @@ function renderImportItemsUI() {
                     <img src="assets/img_product/${item.product_image || 'default_shoe.png'}" class="rounded me-3 border border-secondary bg-white" style="width: 50px; height: 50px; object-fit: contain;">
                     <div class="flex-grow-1">
                         <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="fw-bold small ${processed > 0 ? 'text-success' : 'text-white'}">${item.product_name}</span>
+                            <span class="fw-bold small ${isProcessed ? 'text-success' : 'text-white'}">${item.product_name}</span>
                             <span class="badge ${badgeClass}">${processed} / ${qty}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-end">
@@ -158,8 +266,8 @@ function renderImportItemsUI() {
         `;
     }).join('');
 
-    // Chỉ hiện nút Hoàn Tất khi tất cả các dòng biến thể đều đã được Lưu tạm ít nhất 1 lần (processed_qty > 0)
-    const allSavedTemp = importTicketItems.length > 0 && importTicketItems.every(item => (parseInt(item.processed_qty) || 0) > 0);
+    // Hiện nút Hoàn Tất khi tất cả các dòng biến thể đều đã được Lưu nháp ít nhất 1 lần
+    const allSavedTemp = importTicketItems.length > 0 && importTicketItems.every(item => isImportItemProcessed(item));
 
     if (allSavedTemp) {
         document.getElementById('btn_complete_import').classList.remove('d-none');
@@ -290,14 +398,16 @@ function processAIResult(index) {
     console.log("Số lượng mẫu tìm thấy:", matches.length);
     console.log("Điểm cao nhất (topScore):", topScore);
 
-    // [SỬA] Nếu có từ 2 mẫu trở lên HOẶC điểm thấp hơn ngưỡng khớp hoàn toàn (high_similarity) -> Ép buộc hiện khung màu vàng
-    if (matches.length > 1 || topScore < highScore) {
-        console.log("👉 ĐIỀU KIỆN ĐÚNG: Đang mở khung Phân Vân màu vàng!");
-        renderSuggestionDropdown(matches, aiItem.temp_image);
-    } else {
+    // Khi điểm cao nhất >= highScore (mặc định 95% theo config/PercentMatching.php):
+    // Hệ thống xem như nhận diện chính xác hoàn toàn và tự động điền form (Auto-Fill)
+    if (topScore >= highScore) {
         console.log(`👉 ĐIỀU KIỆN ĐÚNG: Đã thỏa mãn >= ${highScore}%, cho phép Auto-Match!`);
         let isSuccess = autoProcessMatch(topMatch, aiItem.temp_image);
         if (isSuccess) alert(`Thành công! Khớp ảnh kho (Gốc: ${topScore.toFixed(1)}%)`);
+    } else {
+        // Điểm nằm trong khoảng từ minScore (80%) đến dưới highScore (95%): AI phân vân -> Hiện khung gợi ý màu vàng
+        console.log("👉 ĐIỀU KIỆN ĐÚNG: Điểm dưới ngưỡng tuyệt đối, đang mở khung Phân Vân màu vàng!");
+        renderSuggestionDropdown(matches, aiItem.temp_image);
     }
 
 }
@@ -602,21 +712,55 @@ function autoFillImportQty() {
 // =========================================================================
 // HÀM MỚI: TẢI DANH SÁCH Ô KỆ ĐỂ CẤT HÀNG (PUTAWAY) - ĐÃ TỐI ƯU RANKING SCORE
 // =========================================================================
-async function loadPutawayLocations(variantId) {
-    let container = document.getElementById('putaway_locations_container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'putaway_locations_container';
-        container.className = 'mt-3 p-3 rounded bg-black bg-opacity-25 border border-info';
+// Cấu hình cho từng tab: cùng 1 thuật toán gợi ý kệ, chỉ khác phần tử giao diện
+const PUTAWAY_CFG_AI = {
+    getContainer: () => {
+        let container = document.getElementById('putaway_locations_container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'putaway_locations_container';
+            container.className = 'mt-3 p-3 rounded bg-black bg-opacity-25 border border-info';
 
-        const btnSave = document.getElementById('btn_save_temp');
-        btnSave.parentNode.insertBefore(container, btnSave);
-    }
+            const btnSave = document.getElementById('btn_save_temp');
+            btnSave.parentNode.insertBefore(container, btnSave);
+        }
+        return container;
+    },
+    qtyInputId: 'import_actual_qty',
+    inputClass: 'putaway-input',
+    rowClass: 'putaway-row',
+    listId: 'putaway_slot_list',
+    warningId: 'putaway_warning_msg',
+    validateFn: 'validatePutawayTotal'
+};
+
+const PUTAWAY_CFG_MANUAL = {
+    getContainer: () => {
+        const container = document.getElementById('manual_putaway_locations_container');
+        if (container) container.className = 'mb-3 p-3 rounded bg-black bg-opacity-25 border border-info';
+        return container;
+    },
+    qtyInputId: 'manual_import_actual_qty',
+    inputClass: 'manual-putaway-input',
+    rowClass: 'putaway-row manual-putaway-row',
+    listId: 'manual_putaway_slot_list',
+    warningId: 'manual_putaway_warning_msg',
+    validateFn: 'validateManualPutawayTotal'
+};
+
+async function loadPutawayLocations(variantId) {
+    return renderPutawayPanel(variantId, PUTAWAY_CFG_AI);
+}
+
+// Hàm dùng chung cho cả tab Nhập AI và tab Nhập thủ công
+async function renderPutawayPanel(variantId, cfg) {
+    const container = cfg.getContainer();
+    if (!container) return;
 
     container.innerHTML = '<div class="text-center text-info small"><i class="fas fa-spinner fa-spin"></i> Đang tải sơ đồ kệ...</div>';
 
     try {
-        const quantity = parseInt(document.getElementById('import_actual_qty').value, 10) || 0;
+        const quantity = parseInt(document.getElementById(cfg.qtyInputId).value, 10) || 0;
         const res = await fetch(`index.php?page=tickets&action=get_putaway_locations&variant_id=${encodeURIComponent(variantId)}&ticket_id=${encodeURIComponent(currentImportTicketId)}&quantity=${quantity}`);
         const data = await res.json();
 
@@ -693,7 +837,7 @@ async function loadPutawayLocations(variantId) {
             const searchText = `${slotCode} ${slot.shelf_name} ${slot.tier} ${slot.slot}`.toLocaleLowerCase('vi');
 
             return `
-    <div class="bg-black p-2 rounded mb-2 border border-secondary putaway-row transition-all" data-putaway-search="${escapePutawayHtml(searchText)}">
+    <div class="bg-black p-2 rounded mb-2 border border-secondary ${cfg.rowClass} transition-all" data-putaway-search="${escapePutawayHtml(searchText)}">
         <div class="d-flex justify-content-between align-items-center gap-2">
             <span class="text-white fw-bold small">
                 Ô ${escapePutawayHtml(slotCode)}
@@ -706,7 +850,7 @@ async function loadPutawayLocations(variantId) {
                     ${Number(slot.score || 0).toFixed(2)} điểm ▾
                 </button>
                 <input type="number"
-                       class="form-control form-control-sm text-center putaway-input fw-bold bg-dark text-info border-info"
+                       class="form-control form-control-sm text-center ${cfg.inputClass} fw-bold bg-dark text-info border-info"
                        style="width: 70px;"
                        data-shelf-id="${escapePutawayHtml(slot.shelf_id)}"
                        data-shelf-name="${escapePutawayHtml(slot.shelf_name)}"
@@ -716,7 +860,7 @@ async function loadPutawayLocations(variantId) {
                        max="${availSpace}"
                        min="0"
                        value="${prefillQty}"
-                       oninput="validatePutawayTotal()">
+                       oninput="${cfg.validateFn}()">
             </div>
         </div>
         <div class="putaway-score-breakdown mt-2 p-2 rounded border border-secondary text-white small" hidden>
@@ -753,15 +897,15 @@ async function loadPutawayLocations(variantId) {
                 <input type="search" class="form-control form-control-sm bg-dark text-white border-secondary"
                        style="padding-left:36px;"
                        placeholder="Tìm mã ô, kệ, tầng (VD: A_2, Kệ B)..."
-                       oninput="filterPutawayRows(this.value)">
+                       oninput="filterPutawayRows(this.value, '${cfg.listId}')">
             </div>
-            <div id="putaway_slot_list" class="d-flex flex-column" style="max-height: 320px; overflow-y: auto; padding-right: 5px;">${slotsHtml}</div>
+            <div id="${cfg.listId}" class="d-flex flex-column" style="max-height: 320px; overflow-y: auto; padding-right: 5px;">${slotsHtml}</div>
             ${shortageHtml}
-            <div id="putaway_warning_msg" class="mt-3 text-center fw-bold small"></div>
+            <div id="${cfg.warningId}" class="mt-3 text-center fw-bold small"></div>
         `;
 
         // Kích hoạt hàm kiểm tra tổng số lượng sau khi render hoàn tất
-        validatePutawayTotal();
+        window[cfg.validateFn]();
 
     } catch (e) {
         container.innerHTML = '<div class="text-danger small">Lỗi truy xuất sơ đồ kệ.</div>';
@@ -774,9 +918,9 @@ function escapePutawayHtml(value) {
     })[char]);
 }
 
-function filterPutawayRows(value) {
+function filterPutawayRows(value, listId = 'putaway_slot_list') {
     const keyword = String(value || '').trim().toLocaleLowerCase('vi');
-    document.querySelectorAll('#putaway_slot_list .putaway-row').forEach(row => {
+    document.querySelectorAll(`#${listId} .putaway-row`).forEach(row => {
         row.hidden = keyword !== '' && !String(row.dataset.putawaySearch || '').includes(keyword);
     });
 }
@@ -794,6 +938,8 @@ function validatePutawayTotal() {
     const targetQty = parseInt(document.getElementById('import_actual_qty').value) || 0;
     let allocatedQty = 0;
     const inputs = document.querySelectorAll('.putaway-input');
+    // Thực tế = 0 -> không cần phân bổ kệ, xóa mọi số lượng đang điền trên các ô kệ
+    if (targetQty === 0) inputs.forEach(i => { i.value = 0; });
 
     inputs.forEach(input => {
         let max = parseInt(input.max) || 0;
@@ -822,10 +968,10 @@ function validatePutawayTotal() {
     if (!msg) return;
 
     if (targetQty === 0) {
-        msg.innerHTML = '<span class="text-secondary">Vui lòng đếm số lượng thực tế cần nhập.</span>';
-        btnSave.disabled = true;
+        msg.innerHTML = '<span class="text-warning"><i class="fas fa-info-circle me-1"></i>Thực tế nhận 0 đôi (thiếu toàn bộ). Không cần xếp kệ, có thể Lưu!</span>';
+        btnSave.disabled = false;
     } else if (allocatedQty === targetQty) {
-        msg.innerHTML = `<span class="text-success"><i class="fas fa-check-circle me-1"></i>Đã chọn đủ vị trí cho ${targetQty} đôi. Có thể Lưu Nháp!</span>`;
+        msg.innerHTML = `<span class="text-success"><i class="fas fa-check-circle me-1"></i>Đã chọn đủ vị trí cho ${targetQty} đôi. Có thể Lưu!</span>`;
         btnSave.disabled = false;
     } else if (allocatedQty < targetQty) {
         msg.innerHTML = `<span class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>Vui lòng chọn thêm kệ để cất ${targetQty - allocatedQty} đôi nữa.</span>`;
@@ -911,7 +1057,8 @@ async function saveTempImport(e) {
     let putawayLocations = [];
     document.querySelectorAll('.putaway-input').forEach(input => {
         let val = parseInt(input.value) || 0;
-        if (val > 0) {
+        // Thực tế = 0 -> không phân bổ kệ (bỏ qua mọi giá trị gợi ý còn sót trên ô kệ)
+        if (act > 0 && val > 0) {
             putawayLocations.push({
                 shelf_id: input.getAttribute('data-shelf-id'),
                 shelf_name: input.getAttribute('data-shelf-name'),
@@ -970,7 +1117,7 @@ async function saveTempImport(e) {
     } catch (err) {
         alert("Lỗi kết nối ngầm!");
     } finally {
-        btn.innerHTML = 'LƯU NHÁP BIẾN THỂ NÀY';
+        btn.innerHTML = 'LƯU BIẾN THỂ NÀY';
         btn.disabled = false;
     }
 }
@@ -1010,7 +1157,7 @@ async function completeImportTicket() {
 function editImportItem(variantId) {
     const item = importTicketItems.find(i => i.variant_id == variantId);
 
-    if (!item || parseInt(item.processed_qty || 0) === 0) {
+    if (!item || !isImportItemProcessed(item)) {
         return;
     }
 
@@ -1066,6 +1213,606 @@ function editImportItem(variantId) {
  * Tác dụng: Trả trạng thái phiếu từ PROCESSING về lại PAUSED để treo tiến trình cho lần sau và tải lại danh sách.
  */
 function backToImportTickets() {
+    const tabsHeader = document.getElementById('import_tabs_header');
+    if (tabsHeader) tabsHeader.classList.add('d-none');
     fetch(`index.php?page=tickets&action=update_status&ticket_id=${currentImportTicketId}&status=PAUSED`, { method: 'POST' });
     loadMyImportTickets();
+}
+
+// =========================================================================
+// LOGIC NHẬP KHO THỦ CÔNG (MANUAL IMPORT)
+// =========================================================================
+let currentActiveImportTab = 'ai';
+let manualSelectedProduct = null; // { brand, product_name, product_id, product_image }
+
+function switchImportTab(tab) {
+    currentActiveImportTab = tab;
+    const aiBtn = document.getElementById('tab_import_ai_btn');
+    const manualBtn = document.getElementById('tab_import_manual_btn');
+    const aiPane = document.getElementById('tab_import_ai_pane');
+    const manualPane = document.getElementById('tab_import_manual_pane');
+
+    if (tab === 'ai') {
+        if (aiBtn) {
+            aiBtn.classList.add('active', 'btn-outline-info');
+            aiBtn.classList.remove('btn-outline-light');
+        }
+        if (manualBtn) {
+            manualBtn.classList.remove('active', 'btn-outline-info');
+            manualBtn.classList.add('btn-outline-light');
+        }
+        if (aiPane) aiPane.classList.remove('d-none');
+        if (manualPane) {
+            manualPane.classList.remove('d-flex');
+            manualPane.classList.add('d-none');
+        }
+    } else {
+        if (manualBtn) {
+            manualBtn.classList.add('active', 'btn-outline-info');
+            manualBtn.classList.remove('btn-outline-light');
+        }
+        if (aiBtn) {
+            aiBtn.classList.remove('active', 'btn-outline-info');
+            aiBtn.classList.add('btn-outline-light');
+        }
+        if (aiPane) aiPane.classList.add('d-none');
+        if (manualPane) {
+            manualPane.classList.remove('d-none');
+            manualPane.classList.add('d-flex');
+        }
+        initManualImportForm();
+    }
+}
+
+function initManualImportForm() {
+    setupManualBrandAutocomplete();
+    setupManualProductAutocomplete();
+}
+
+// 1. GỢI Ý VÀ TÌM KIẾM BRAND
+function setupManualBrandAutocomplete() {
+    const input = document.getElementById('manual_brand_input');
+    const box = document.getElementById('manual_brand_suggestions');
+    if (!input || !box) return;
+
+    // Lấy danh sách thương hiệu độc nhất từ phiếu nhập hoặc categoriesList
+    const getBrandList = () => {
+        const brandsSet = new Set();
+        if (Array.isArray(window.categoriesList)) {
+            window.categoriesList.forEach(c => {
+                const name = c.category_name || c.name;
+                if (name) brandsSet.add(name.trim());
+            });
+        }
+        if (Array.isArray(importTicketItems)) {
+            importTicketItems.forEach(i => {
+                if (i.brand) brandsSet.add(i.brand.trim());
+            });
+        }
+        return Array.from(brandsSet);
+    };
+
+    const renderBrandSuggestions = (filterText = '') => {
+        const list = getBrandList();
+        const kw = filterText.toLowerCase().trim();
+        const matches = list.filter(b => b.toLowerCase().includes(kw));
+
+        if (matches.length === 0) {
+            box.innerHTML = '<div class="list-group-item bg-dark text-white-50 small text-center py-2">Không tìm thấy hãng khớp</div>';
+            box.classList.remove('d-none');
+            return;
+        }
+
+        box.innerHTML = matches.map(b => `
+            <a href="javascript:void(0)" class="list-group-item list-group-item-action bg-dark text-white border-secondary py-2 small fw-bold" onclick="selectManualBrand('${b.replace(/'/g, "\\'")}')">
+                <i class="fas fa-tag me-2 text-info"></i>${b}
+            </a>
+        `).join('');
+        box.classList.remove('d-none');
+    };
+
+    input.onfocus = () => renderBrandSuggestions(input.value);
+    input.oninput = () => {
+        renderBrandSuggestions(input.value);
+        // Khi user đổi text hãng, reset lại sản phẩm và màu/size
+        resetManualProductSelection();
+    };
+
+    document.addEventListener('click', (e) => {
+        if (!input.contains(e.target) && !box.contains(e.target)) {
+            box.classList.add('d-none');
+        }
+    });
+}
+
+function selectManualBrand(brandName) {
+    const input = document.getElementById('manual_brand_input');
+    const box = document.getElementById('manual_brand_suggestions');
+    if (input) input.value = brandName;
+    if (box) box.classList.add('d-none');
+
+    resetManualProductSelection();
+    const prodInput = document.getElementById('manual_name_input');
+    if (prodInput) {
+        prodInput.focus();
+        showManualProductSuggestions();
+    }
+}
+
+// 2. GỢI Ý VÀ TÌM KIẾM MẪU GIÀY THEO BRAND
+function setupManualProductAutocomplete() {
+    const input = document.getElementById('manual_name_input');
+    const box = document.getElementById('manual_name_suggestions');
+    if (!input || !box) return;
+
+    input.onfocus = () => showManualProductSuggestions();
+    input.oninput = () => showManualProductSuggestions();
+
+    document.addEventListener('click', (e) => {
+        if (!input.contains(e.target) && !box.contains(e.target)) {
+            box.classList.add('d-none');
+        }
+    });
+}
+
+function showManualProductSuggestions() {
+    const input = document.getElementById('manual_name_input');
+    const box = document.getElementById('manual_name_suggestions');
+    const brandInput = document.getElementById('manual_brand_input');
+    if (!input || !box) return;
+
+    const brandFilter = brandInput ? brandInput.value.trim().toLowerCase() : '';
+    const kw = input.value.trim().toLowerCase();
+
+    // Lấy danh sách sản phẩm độc nhất từ importTicketItems
+    const productsMap = new Map();
+    if (Array.isArray(importTicketItems)) {
+        importTicketItems.forEach(i => {
+            const b = (i.brand || '').trim();
+            const pName = (i.product_name || '').trim();
+            if (!pName) return;
+            if (brandFilter && b.toLowerCase() !== brandFilter) return;
+
+            const key = `${b}_${pName}`.toLowerCase();
+            if (!productsMap.has(key)) {
+                productsMap.set(key, {
+                    brand: i.brand,
+                    product_name: i.product_name,
+                    product_id: i.product_id,
+                    product_image: i.product_image || 'default_shoe.png'
+                });
+            }
+        });
+    }
+
+    const list = Array.from(productsMap.values());
+    const matches = list.filter(p => p.product_name.toLowerCase().includes(kw));
+
+    if (matches.length === 0) {
+        box.innerHTML = '<div class="list-group-item bg-dark text-white-50 small text-center py-2">Không tìm thấy mẫu giày nào trong phiếu khớp</div>';
+        box.classList.remove('d-none');
+        return;
+    }
+
+    box.innerHTML = matches.map(p => {
+        const valStr = JSON.stringify(p).replace(/'/g, "&#39;");
+        return `
+            <a href="javascript:void(0)" class="list-group-item list-group-item-action bg-dark text-white border-secondary py-2 d-flex align-items-center" onclick='selectManualProduct(${JSON.stringify(p)})'>
+                <img src="assets/img_product/${p.product_image}" class="rounded bg-white me-2 border border-secondary" style="width: 32px; height: 32px; object-fit: contain;">
+                <div class="d-flex flex-column">
+                    <span class="small fw-bold">${p.product_name}</span>
+                    <span class="text-white-50" style="font-size: 0.7rem;">Hãng: ${p.brand}</span>
+                </div>
+            </a>
+        `;
+    }).join('');
+    box.classList.remove('d-none');
+}
+
+function selectManualProduct(prod) {
+    manualSelectedProduct = prod;
+    const brandInput = document.getElementById('manual_brand_input');
+    const nameInput = document.getElementById('manual_name_input');
+    const nameBox = document.getElementById('manual_name_suggestions');
+
+    if (brandInput && (!brandInput.value || brandInput.value.trim().toLowerCase() !== prod.brand.toLowerCase())) {
+        brandInput.value = prod.brand;
+    }
+    if (nameInput) nameInput.value = prod.product_name;
+    if (nameBox) nameBox.classList.add('d-none');
+
+    // Nạp dropdown Màu cho sản phẩm này
+    loadManualColorDropdown();
+}
+
+function resetManualProductSelection() {
+    manualSelectedProduct = null;
+    const colorSelect = document.getElementById('manual_import_color');
+    const sizeSelect = document.getElementById('manual_import_size');
+    const expInput = document.getElementById('manual_import_expected_qty');
+    const actInput = document.getElementById('manual_import_actual_qty');
+    const badge = document.getElementById('manual_import_status_badge');
+    const note = document.getElementById('manual_import_note');
+    const btnSave = document.getElementById('btn_manual_save_temp');
+    const container = document.getElementById('manual_putaway_locations_container');
+
+    if (colorSelect) {
+        colorSelect.innerHTML = '<option value="">-- Chọn mẫu trước --</option>';
+        colorSelect.disabled = true;
+    }
+    if (sizeSelect) {
+        sizeSelect.innerHTML = '<option value="">-- Chọn màu trước --</option>';
+        sizeSelect.disabled = true;
+    }
+    if (expInput) expInput.value = '';
+    if (actInput) actInput.value = '';
+    if (badge) {
+        badge.className = 'badge bg-secondary w-100 p-2';
+        badge.innerText = 'CHƯA CHỌN SẢN PHẨM';
+    }
+    if (note) note.value = '';
+    if (btnSave) btnSave.disabled = true;
+    if (container) container.innerHTML = '';
+
+    document.querySelectorAll('[id^="import_row_"]').forEach(el => {
+        el.classList.remove('bg-info', 'bg-opacity-25', 'border-info');
+    });
+}
+
+// 3. NẠP DROPDOWN MÀU
+function loadManualColorDropdown() {
+    const colorSelect = document.getElementById('manual_import_color');
+    const sizeSelect = document.getElementById('manual_import_size');
+    if (!colorSelect) return;
+
+    if (!manualSelectedProduct) {
+        colorSelect.innerHTML = '<option value="">-- Chọn mẫu trước --</option>';
+        colorSelect.disabled = true;
+        return;
+    }
+
+    // Lọc các màu của sản phẩm này trong phiếu nhập
+    const matchedItems = (importTicketItems || []).filter(item => isSameProduct(item, manualSelectedProduct));
+    const colors = [...new Set(matchedItems.map(i => i.color).filter(Boolean))];
+
+    if (colors.length === 0) {
+        colorSelect.innerHTML = '<option value="">Không có màu nào trong phiếu</option>';
+        colorSelect.disabled = true;
+        return;
+    }
+
+    colorSelect.innerHTML = '<option value="">-- Chọn màu --</option>' + colors.map(c => `<option value="${c}">${c}</option>`).join('');
+    colorSelect.disabled = false;
+
+    if (sizeSelect) {
+        sizeSelect.innerHTML = '<option value="">-- Chọn màu trước --</option>';
+        sizeSelect.disabled = true;
+    }
+
+    if (colors.length === 1) {
+        colorSelect.value = colors[0];
+        onManualColorChange();
+    }
+}
+
+// 4. KHI CHỌN MÀU -> NẠP DROPDOWN SIZE
+function onManualColorChange() {
+    const colorSelect = document.getElementById('manual_import_color');
+    const sizeSelect = document.getElementById('manual_import_size');
+    if (!colorSelect || !sizeSelect) return;
+
+    const selectedColor = colorSelect.value;
+    if (!selectedColor || !manualSelectedProduct) {
+        sizeSelect.innerHTML = '<option value="">-- Chọn màu trước --</option>';
+        sizeSelect.disabled = true;
+        return;
+    }
+
+    const matchedItems = (importTicketItems || []).filter(item => 
+        isSameProduct(item, manualSelectedProduct) && item.color === selectedColor
+    );
+
+    if (matchedItems.length === 0) {
+        sizeSelect.innerHTML = '<option value="">Không có size nào trong phiếu</option>';
+        sizeSelect.disabled = true;
+        return;
+    }
+
+    sizeSelect.innerHTML = '<option value="">-- Chọn size --</option>' + matchedItems.map(item => `
+        <option value="${item.size}" data-variant-id="${item.variant_id}" data-detail-id="${item.detail_id}">Size ${item.size}</option>
+    `).join('');
+    sizeSelect.disabled = false;
+
+    if (matchedItems.length === 1) {
+        sizeSelect.value = matchedItems[0].size;
+        onManualSizeChange();
+    }
+}
+
+// 5. KHI CHỌN SIZE -> KIỂM TRA NGHIỆP VỤ (CHỐNG NHẬP TRÙNG / SAI PHIẾU)
+function onManualSizeChange() {
+    const brandInput = document.getElementById('manual_brand_input');
+    const nameInput = document.getElementById('manual_name_input');
+    const colorSelect = document.getElementById('manual_import_color');
+    const sizeSelect = document.getElementById('manual_import_size');
+
+    const brand = brandInput ? brandInput.value.trim() : '';
+    const name = nameInput ? nameInput.value.trim() : '';
+    const color = colorSelect ? colorSelect.value.trim() : '';
+    const size = sizeSelect ? sizeSelect.value.trim() : '';
+
+    if (!size) {
+        resetManualProductSelectionFields();
+        return;
+    }
+
+    // Tìm item trong importTicketItems khớp Brand, Name, Color, Size
+    const foundItem = (importTicketItems || []).find(item => {
+        const matchBrand = (item.brand || '').trim().toLowerCase() === brand.toLowerCase();
+        const matchName = (item.product_name || '').trim().toLowerCase() === name.toLowerCase();
+        const matchColor = (item.color || '').trim().toLowerCase() === color.toLowerCase();
+        const matchSize = (item.size || '').toString().trim() === size.toString().trim();
+        return matchBrand && matchName && matchColor && matchSize;
+    });
+
+    // TRƯỜNG HỢP 1: Không tồn tại trong phiếu nhập
+    if (!foundItem) {
+        alert(`phiếu nhập không tồn tại sản phẩm ${name} ${color} size ${size}, vui lòng kiểm tra lại`);
+        sizeSelect.value = '';
+        resetManualProductSelectionFields();
+        return;
+    }
+
+    // TRƯỜNG HỢP 2: Đã được nhập trước đó trong phiếu
+    const isAlreadyProcessed = isImportItemProcessed(foundItem);
+    if (isAlreadyProcessed) {
+        const skuText = foundItem.sku ? `SKU:${foundItem.sku}` : 'SKU:N/A';
+        alert(`sản phẩm ${name} ${color} size ${size} (${skuText}) trong phiếu đã được nhập, bạn vui lòng kiểm tra lại`);
+        sizeSelect.value = '';
+        resetManualProductSelectionFields();
+        return;
+    }
+
+    // TRƯỜNG HỢP HỢP LỆ: Điền dữ liệu và gợi ý kệ
+    applyManualMatchedItem(foundItem);
+}
+
+function resetManualProductSelectionFields() {
+    const expInput = document.getElementById('manual_import_expected_qty');
+    const actInput = document.getElementById('manual_import_actual_qty');
+    const badge = document.getElementById('manual_import_status_badge');
+    const note = document.getElementById('manual_import_note');
+    const btnSave = document.getElementById('btn_manual_save_temp');
+    const container = document.getElementById('manual_putaway_locations_container');
+    const varInput = document.getElementById('manual_import_variant_id');
+    const detInput = document.getElementById('manual_import_detail_id');
+
+    if (expInput) expInput.value = '';
+    if (actInput) actInput.value = '';
+    if (varInput) varInput.value = '';
+    if (detInput) detInput.value = '';
+    if (badge) {
+        badge.className = 'badge bg-secondary w-100 p-2';
+        badge.innerText = 'CHƯA CHỌN SẢN PHẨM';
+    }
+    if (note) note.value = '';
+    if (btnSave) btnSave.disabled = true;
+    if (container) container.innerHTML = '';
+
+    document.querySelectorAll('[id^="import_row_"]').forEach(el => {
+        el.classList.remove('bg-info', 'bg-opacity-25', 'border-info');
+    });
+}
+
+function applyManualMatchedItem(item) {
+    const expInput = document.getElementById('manual_import_expected_qty');
+    const actInput = document.getElementById('manual_import_actual_qty');
+    const varInput = document.getElementById('manual_import_variant_id');
+    const detInput = document.getElementById('manual_import_detail_id');
+    const imgInput = document.getElementById('manual_import_temp_image');
+
+    const expectedQty = parseInt(item.quantity, 10) || 0;
+    if (expInput) expInput.value = expectedQty;
+    if (actInput) actInput.value = expectedQty;
+    if (varInput) varInput.value = item.variant_id;
+    if (detInput) detInput.value = item.detail_id;
+    if (imgInput) imgInput.value = item.product_image || 'default_shoe.png';
+
+    // Highlight dòng tương ứng ở cột trái
+    document.querySelectorAll('[id^="import_row_"]').forEach(el => {
+        el.classList.remove('bg-info', 'bg-opacity-25', 'border-info');
+    });
+    const activeRow = document.getElementById(`import_row_${item.variant_id}`);
+    if (activeRow) {
+        activeRow.classList.add('bg-info', 'bg-opacity-25', 'border-info');
+        activeRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    checkManualImportDiscrepancy();
+
+    // Tải sơ đồ gợi ý vị trí kệ putaway
+    window.lastPutawayQuantity = expectedQty;
+    loadManualPutawayLocations(item.variant_id);
+}
+
+// 6. SO SÁNH SỐ LƯỢNG THỰC TẾ & TÍNH TOÁN LỆCH CHO THỦ CÔNG
+function checkManualImportDiscrepancy() {
+    const exp = parseInt(document.getElementById('manual_import_expected_qty').value) || 0;
+    const act = parseInt(document.getElementById('manual_import_actual_qty').value) || 0;
+    const badge = document.getElementById('manual_import_status_badge');
+    const noteField = document.getElementById('manual_import_note');
+    const nameInput = document.getElementById('manual_name_input');
+    const shoeName = nameInput ? nameInput.value.trim() : '';
+
+    if (!badge) return;
+
+    if (act === exp) {
+        badge.className = 'badge bg-success w-100 p-2';
+        badge.innerText = 'KHỚP SỐ LƯỢNG';
+        if (noteField && (noteField.value.startsWith('thiếu ') || noteField.value.startsWith('dư '))) {
+            noteField.value = '';
+        }
+    } else {
+        badge.className = 'badge bg-warning text-dark w-100 p-2';
+        let diff = act - exp;
+        badge.innerText = `CÓ LỆCH: ${diff > 0 ? '+' : ''}${diff} ĐÔI`;
+
+        if (noteField) {
+            if (act < exp) {
+                noteField.value = `thiếu ${exp - act} ${shoeName}`;
+            } else {
+                noteField.value = `dư ${act - exp} ${shoeName}`;
+            }
+        }
+    }
+
+    validateManualPutawayTotal();
+
+    const variantId = document.getElementById('manual_import_variant_id').value;
+    if (variantId && window.lastPutawayQuantity !== act) {
+        window.lastPutawayQuantity = act;
+        loadManualPutawayLocations(variantId);
+    }
+}
+
+// 7. GỢI Ý VỊ TRÍ KỆ PUTAWAY CHO TAB THỦ CÔNG
+// Dùng CHUNG 100% thuật toán + giao diện gợi ý kệ của tab Nhập AI (renderPutawayPanel),
+// chỉ khác ID container / ô số lượng / class input để 2 tab không xung đột dữ liệu.
+async function loadManualPutawayLocations(variantId) {
+    return renderPutawayPanel(variantId, PUTAWAY_CFG_MANUAL);
+}
+
+function validateManualPutawayTotal() {
+    const targetQty = parseInt(document.getElementById('manual_import_actual_qty').value) || 0;
+    let allocatedQty = 0;
+    const inputs = document.querySelectorAll('.manual-putaway-input');
+    // Thực tế = 0 -> không cần phân bổ kệ, xóa mọi số lượng đang điền trên các ô kệ
+    if (targetQty === 0) inputs.forEach(i => { i.value = 0; });
+
+    inputs.forEach(input => {
+        let max = parseInt(input.max) || 0;
+        let val = parseInt(input.value) || 0;
+
+        if (val < 0) { val = 0; input.value = 0; }
+        if (val > max) { val = max; input.value = max; }
+
+        const row = input.closest('.manual-putaway-row');
+        if (val > 0) {
+            row.classList.replace('border-secondary', 'border-success');
+            row.style.backgroundColor = 'rgba(25, 135, 84, 0.2)';
+        } else {
+            row.classList.replace('border-success', 'border-secondary');
+            row.style.backgroundColor = '';
+        }
+
+        allocatedQty += val;
+    });
+
+    const btnSave = document.getElementById('btn_manual_save_temp');
+    const msg = document.getElementById('manual_putaway_warning_msg');
+
+    if (!msg || !btnSave) return;
+
+    if (targetQty === 0) {
+        msg.innerHTML = '<span class="text-warning"><i class="fas fa-info-circle me-1"></i>Thực tế nhận 0 đôi (thiếu toàn bộ). Không cần xếp kệ, có thể Lưu!</span>';
+        btnSave.disabled = false;
+    } else if (allocatedQty === targetQty) {
+        msg.innerHTML = `<span class="text-success"><i class="fas fa-check-circle me-1"></i>Đã chọn đủ vị trí cho ${targetQty} đôi. Có thể Lưu!</span>`;
+        btnSave.disabled = false;
+    } else if (allocatedQty < targetQty) {
+        msg.innerHTML = `<span class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>Vui lòng chọn thêm kệ để cất ${targetQty - allocatedQty} đôi nữa.</span>`;
+        btnSave.disabled = true;
+    } else {
+        msg.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>Phân bổ dư ${allocatedQty - targetQty} đôi. Giảm bớt số lượng!</span>`;
+        btnSave.disabled = true;
+    }
+}
+
+// 8. LƯU NHÁP TAB THỦ CÔNG
+async function saveTempImportManual(e) {
+    e.preventDefault();
+
+    const exp = parseInt(document.getElementById('manual_import_expected_qty').value) || 0;
+    const act = parseInt(document.getElementById('manual_import_actual_qty').value) || 0;
+
+    let allocatedQty = 0;
+    document.querySelectorAll('.manual-putaway-input').forEach(input => {
+        allocatedQty += parseInt(input.value) || 0;
+    });
+
+    if (act > 0 && allocatedQty !== act) {
+        alert(`LỖI: Bạn đang nhập ${act} đôi giày nhưng mới xếp ${allocatedQty} đôi lên kệ.\nVui lòng phân bổ đủ vị trí trên Sơ đồ Kệ trước khi nhấn Lưu!`);
+        return;
+    }
+
+    if (act !== exp) {
+        let msg = act < exp ? `Phát hiện THIẾU ${exp - act} đôi.` : `Phát hiện DƯ ${act - exp} đôi.`;
+        if (!confirm(`${msg}\nBạn có chắc chắn muốn ghi nhận số lượng thực tế là ${act} không?`)) return;
+    }
+
+    const form = e.target;
+    const btn = document.getElementById('btn_manual_save_temp');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ĐANG LƯU...';
+    btn.disabled = true;
+
+    let putawayLocations = [];
+    document.querySelectorAll('.manual-putaway-input').forEach(input => {
+        let val = parseInt(input.value) || 0;
+        // Thực tế = 0 -> không phân bổ kệ (bỏ qua mọi giá trị gợi ý còn sót trên ô kệ)
+        if (act > 0 && val > 0) {
+            putawayLocations.push({
+                shelf_id: input.getAttribute('data-shelf-id'),
+                shelf_name: input.getAttribute('data-shelf-name'),
+                tier: input.getAttribute('data-tier'),
+                slot: input.getAttribute('data-slot'),
+                variant_id: document.getElementById('manual_import_variant_id').value,
+                qty: val
+            });
+        }
+    });
+
+    const fd = new FormData(form);
+    fd.append('ticket_id', currentImportTicketId);
+    fd.append('putaway_locations', JSON.stringify(putawayLocations));
+
+    try {
+        const res = await fetch('index.php?page=tickets&action=save_temp_import', { method: 'POST', body: fd });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+            if (data.qr_code) {
+                const qrImage = `https://quickchart.io/qr?text=${encodeURIComponent(data.qr_code)}&size=200&ecLevel=H`;
+                const qrModalHtml = `
+                    <div id="temp_qr_overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; display:flex; justify-content:center; align-items:center;">
+                        <div class="bg-white p-4 rounded text-center shadow-lg" style="width:300px;">
+                            <h5 class="fw-bold text-success mb-3"><i class="fas fa-check-circle"></i> ĐÃ LƯU BIẾN THỂ</h5>
+                            <img src="${qrImage}" class="img-fluid border p-2 rounded mb-3">
+                            <p class="small text-muted mb-3">Quét mã để dán lên lô hàng</p>
+                            <button class="btn btn-dark w-100 fw-bold" onclick="document.getElementById('temp_qr_overlay').remove()">TIẾP TỤC</button>
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', qrModalHtml);
+            }
+
+            // Tải lại danh sách biến thể phiếu
+            loadImportTicketItems();
+
+            // Reset form nhập thủ công
+            const brandInput = document.getElementById('manual_brand_input');
+            const nameInput = document.getElementById('manual_name_input');
+            if (brandInput) brandInput.value = '';
+            if (nameInput) nameInput.value = '';
+            resetManualProductSelection();
+
+            alert('Đã lưu biến thể thành công!');
+        } else {
+            alert("Lỗi: " + data.message);
+        }
+    } catch (err) {
+        alert("Lỗi kết nối ngầm!");
+    } finally {
+        btn.innerHTML = 'LƯU BIẾN THỂ NÀY';
+        btn.disabled = false;
+    }
 }

@@ -157,6 +157,11 @@ class ImportModel
                         throw new Exception("Số lượng thực tế nhập của biến thể ID $v_id ($qty đôi) không khớp với tổng số lượng xếp lên kệ ($shelves_qty đôi)!");
                     }
 
+                    // Thực tế nhận 0 đôi (NCC giao thiếu toàn bộ / giao nhầm) -> không cộng kho, không ghi lịch sử nhập 0 đôi
+                    if ($qty <= 0) {
+                        continue;
+                    }
+
                     // Cập nhật tồn kho bảng product_variants bằng SỐ LƯỢNG THỰC TẾ
                     pg_query_params($this->conn, "UPDATE product_variants SET stock = stock + $1 WHERE variant_id = $2", [$qty, $v_id]);
 

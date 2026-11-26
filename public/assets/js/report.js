@@ -141,52 +141,51 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
 
-    // 3. LOGIC LỌC TỒN KHO THEO BRAND
+    // 3. LOGIC LỌC TỒN KHO THEO BRAND & TRẠNG THÁI
     const brandFilter = document.getElementById('brandFilter');
+    const statusFilter = document.getElementById('statusFilter');
     const inventoryTitle = document.getElementById('inventoryTitle');
-    const productCards = document.querySelectorAll('.inv-product-card');
+    const variantRows = document.querySelectorAll('.inv-variant-row');
 
     function updateInventoryDisplay() {
         if (!brandFilter || !inventoryTitle) return;
 
         const selectedBrand = brandFilter.value;
+        const selectedStatus = statusFilter ? statusFilter.value : 'ALL';
         let totalStock = 0;
+        let visibleCount = 0;
 
-        productCards.forEach(card => {
-            const cardBrand = card.getAttribute('data-brand');
-            if (selectedBrand === 'ALL' || cardBrand === selectedBrand) {
-                card.style.display = 'block';
-                const variants = card.querySelectorAll('.variant-stock');
-                variants.forEach(v => {
-                    totalStock += parseInt(v.innerText);
-                });
+        variantRows.forEach(row => {
+            const rowBrand = row.getAttribute('data-brand');
+            const rowStatus = row.getAttribute('data-status');
+            const matchBrand = (selectedBrand === 'ALL' || rowBrand === selectedBrand);
+            const matchStatus = (selectedStatus === 'ALL' || rowStatus === selectedStatus);
+
+            if (matchBrand && matchStatus) {
+                row.style.display = '';
+                totalStock += parseInt(row.getAttribute('data-stock'), 10) || 0;
+                visibleCount++;
             } else {
-                card.style.display = 'none';
+                row.style.display = 'none';
             }
         });
 
-        if (selectedBrand === 'ALL') {
-            inventoryTitle.innerHTML = `
-                <i class="bi bi-box-seam me-2"></i>Phân Tích Tồn Kho 
-                <span class="ms-2 badge bg-primary-soft text-primary fw-bold" style="font-size: 0.9rem; padding: 5px 12px; border-radius: 50px; background-color: #e7f1ff;">
-                    Tất cả: ${totalStock.toLocaleString()} đôi
-                </span>`;
-        } else {
-            inventoryTitle.innerHTML = `
-                Phân Tích Tồn Kho 
-                <span class="ms-2 text-muted fw-normal" style="font-size: 0.85rem;">|</span>
-                <span class="ms-2 badge bg-light text-dark border fw-medium" style="padding: 5px 12px; border-radius: 6px;">
-                    Hãng: <b class="text-primary">${selectedBrand}</b>
-                </span>
-                <span class="ms-2 badge bg-light text-dark border fw-medium" style="padding: 5px 12px; border-radius: 6px;">
-                    Tổng tồn: <b class="text-danger">${totalStock.toLocaleString()} đôi</b>
-                </span>`;
-        }
+        inventoryTitle.innerHTML = `
+            Phân Tích Tồn Kho & Đề Xuất Nhập Hàng (30 Ngày)
+            <span class="ms-2 badge bg-light text-dark border fw-medium" style="padding: 5px 10px; border-radius: 6px;">
+                Biến thể: <b class="text-primary">${visibleCount}</b>
+            </span>
+            <span class="ms-1 badge bg-light text-dark border fw-medium" style="padding: 5px 10px; border-radius: 6px;">
+                Tổng tồn: <b class="text-danger">${totalStock.toLocaleString()} đôi</b>
+            </span>`;
     }
 
     if (brandFilter) {
         updateInventoryDisplay();
         brandFilter.addEventListener('change', updateInventoryDisplay);
+    }
+    if (statusFilter) {
+        statusFilter.addEventListener('change', updateInventoryDisplay);
     }
 
 
