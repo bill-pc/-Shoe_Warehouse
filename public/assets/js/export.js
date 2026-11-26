@@ -291,7 +291,7 @@ async function autoFillExportForm(detailId) {
                 ? (savedItem ? parseInt(savedItem.qty) || 0 : 0)
                 : recommendedQty;
             const isRecommended = recommendedQty > 0;
-            const breakdown = l.score_breakdown || {};
+            const oldestImportDate = l.oldest_date_formatted || l.oldest_created_at;
             const rawTier = String(l.slot_code).split('-')[0];
             const searchText = `kệ ${l.shelf_name} ${l.shelf_name} ô ${l.slot_code} ${l.slot_code} tầng ${l.tier || rawTier} ${l.shelf_name}_${rawTier}`;
 
@@ -308,19 +308,16 @@ async function autoFillExportForm(detailId) {
                             ${isRecommended ? '<span class="badge bg-success">⭐ Đề xuất lấy hàng</span>' : ''}
                             <button type="button" class="badge rounded-pill bg-secondary border-0 text-light"
                                     style="cursor:pointer;" aria-expanded="false"
-                                    onclick="togglePickScoreDetails(this)">${Number(l.score || 0).toFixed(2)} điểm ▾</button>
+                                    onclick="togglePickFifoDetails(this)">Chi tiết ▾</button>
                         </div>
                     </div>
                     <input type="number" class="form-control form-control-sm text-center pick-input fw-bold bg-dark text-info border-info"
                            style="width: 80px;" data-shelf-id="${l.shelf_id}" data-slot="${escapeExportHtml(l.slot_code)}"
                            min="0" max="${parseInt(l.qty_in_slot) || 0}" value="${Math.min(selectedQty, parseInt(l.qty_in_slot) || 0)}" oninput="validatePickTotal()">
                 </div>
-                <div class="pick-score-details d-none mt-2 p-2 rounded border border-secondary bg-dark small text-white-50">
-                    <div class="fw-bold text-info mb-1">Xếp hạng: Top #${parseInt(breakdown.rank) || 0} ưu tiên</div>
-                    ${renderPickScoreLine('Ưu tiên nhập trước FIFO 35%', breakdown.fifo)}
-                    ${renderPickScoreLine('Dọn trống ô lẻ 30%', breakdown.consolidation)}
-                    ${renderPickScoreLine('Gom 1 lần lấy 25%', breakdown.single_stop)}
-                    ${renderPickScoreLine('Tầm với tầng 10%', breakdown.ergonomics)}
+                <div class="pick-fifo-details d-none mt-2 p-2 rounded border border-secondary bg-dark small">
+                    <div class="fw-bold text-info">Ngày Nhập: ${formatFifoDateTime(oldestImportDate)}</div>
+                    
                 </div>
             </div>`;
         });
@@ -351,18 +348,23 @@ function escapeExportHtml(value) {
         .replace(/'/g, '&#039;');
 }
 
-function renderPickScoreLine(label, detail) {
-    const weighted = Number(detail && detail.weighted ? detail.weighted : 0).toFixed(2);
-    const reason = escapeExportHtml(detail && detail.reason ? detail.reason : 'Chưa có dữ liệu');
-    return `
-        <div class="d-flex justify-content-between gap-2 border-top border-secondary py-1">
-            <span><span class="text-white">${label}:</span> ${reason}</span>
-            <strong class="text-info text-nowrap">+${weighted}</strong>
-        </div>`;
+function formatFifoDateTime(value) {
+    if (!value) return 'Không có dữ liệu';
+    const text = String(value).trim();
+    const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+    if (isoMatch) return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]} ${isoMatch[4]}:${isoMatch[5]}`;
+
+    const formattedMatch = text.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[ T](\d{2}):(\d{2}))?/);
+    if (formattedMatch) {
+        const time = formattedMatch[4] && formattedMatch[5] ? ` ${formattedMatch[4]}:${formattedMatch[5]}` : '';
+        return `${formattedMatch[1]}/${formattedMatch[2]}/${formattedMatch[3]}${time}`;
+    }
+
+    return escapeExportHtml(text);
 }
 
-function togglePickScoreDetails(button) {
-    const details = button.closest('.pick-location-row')?.querySelector('.pick-score-details');
+function togglePickFifoDetails(button) {
+    const details = button.closest('.pick-location-row')?.querySelector('.pick-fifo-details');
     if (!details) return;
 
     const isOpening = details.classList.contains('d-none');

@@ -37,8 +37,8 @@ class ExportModel
 
 
     /**
-     * Chức năng: Tìm các Ô, Kệ chứa dòng JSONB mã hàng.
-     * Tác dụng: Truy xuất được vị trí (layout) kho và chỉ đường cho thủ kho đi gom giày xuất đi.
+     * Tìm các ô chứa biến thể và đề xuất lấy hàng FIFO thuần theo created_at
+     * được lưu trên từng item trong shelves.layout JSONB.
      */
     public function getLocationsFromJSON($variant_id, $required_qty = 0, $current_detail_id = 0)
     {
@@ -53,7 +53,8 @@ class ExportModel
                 s.max_capacity_per_slot,
                 tier.key AS tier_key,
                 (tier.key || '-' || slot.key) AS slot_code,
-                COUNT(item.value)::int AS physical_stock
+                COUNT(item.value)::int AS physical_stock,
+                jsonb_agg(item.value) AS matching_items
             FROM public.shelves s,
                  jsonb_each(s.layout) AS tier,
                  jsonb_each(tier.value) AS slot,
@@ -102,81 +103,35 @@ class ExportModel
             }
         }
 
-        // Lịch sử hiện tại chưa lưu kệ/ô của giao dịch nhập. Dùng tuổi lô nhập cũ nhất
-        // của biến thể làm tín hiệu FIFO chung, thay vì gán một thời gian giả cho từng ô.
-        $historySql = "
-            SELECT MIN(created_at) AS oldest_import_at
-            FROM transactions
-            WHERE transaction_type = 'IMPORT' AND variant_id = $1
-        ";
-        $historyRes = pg_query_params($this->conn, $historySql, [$variant_id]);
-        $history = $historyRes ? pg_fetch_assoc($historyRes) : null;
-        $oldestImportAt = $history['oldest_import_at'] ?? null;
-        $ageDays = null;
-        if ($oldestImportAt) {
-            $ageDays = max(0, (int)floor((time() - strtotime($oldestImportAt)) / 86400));
-        }
-        $maxAgeDays = $ageDays;
-
         $candidates = [];
         foreach ($rows as $row) {
             $slotKey = ((int)$row['shelf_id']) . '|' . $row['slot_code'];
-            $stock = max(0, (int)$row['physical_stock'] - ($reservedBySlot[$slotKey] ?? 0));
+            $items = json_decode($row['matching_items'], true);
+            if (!is_array($items)) $items = [];
+
+            usort($items, function ($a, $b) {
+                $timeCompare = $this->getShelfItemTimestamp($a) <=> $this->getShelfItemTimestamp($b);
+                if ($timeCompare !== 0) return $timeCompare;
+                $ticketA = is_array($a) ? (int)($a['ticket_id'] ?? PHP_INT_MAX) : PHP_INT_MAX;
+                $ticketB = is_array($b) ? (int)($b['ticket_id'] ?? PHP_INT_MAX) : PHP_INT_MAX;
+                return $ticketA <=> $ticketB;
+            });
+
+            // Các phiếu xuất đang mở giữ trước những item cũ nhất trong đúng ô.
+            $reservedQty = min(count($items), $reservedBySlot[$slotKey] ?? 0);
+            $availableItems = array_slice($items, $reservedQty);
+            $stock = count($availableItems);
             if ($stock <= 0) continue;
 
             $maxCapacity = max(1, (int)$row['max_capacity_per_slot']);
-            $fifoRaw = ($ageDays === null || !$maxAgeDays)
-                ? 50.0
-                : min(100.0, ($ageDays / $maxAgeDays) * 100);
-
-            if ($stock <= $required_qty && $required_qty > 0) {
-                $consolidationRaw = 100.0;
-                $consolidationReason = "Lấy hết {$stock} đôi lẻ để giải phóng ô";
-            } else {
-                $consolidationRaw = round(max(0, 1 - ($stock / $maxCapacity)) * 100, 1);
-                $consolidationReason = "Ô còn {$stock}/{$maxCapacity} đôi, ưu tiên ô ít hàng";
-            }
-
-            if ($required_qty <= 0 || $stock >= $required_qty) {
-                $singleStopRaw = 100.0;
-                $singleStopReason = $required_qty > 0
-                    ? "Đủ {$required_qty} đôi tại 1 vị trí"
-                    : 'Đủ hàng tại một vị trí';
-            } else {
-                $singleStopRaw = round(($stock / $required_qty) * 100, 1);
-                $singleStopReason = "Đáp ứng {$stock}/{$required_qty} đôi cần xuất";
-            }
-
             $normalizedTier = 'T' . ltrim(strtoupper((string)$row['tier_key']), 'T');
-            switch ($normalizedTier) {
-                case 'T2':
-                case 'T3':
-                    $ergonomicsRaw = 100.0;
-                    $ergonomicsReason = "Tầng {$normalizedTier} (Tầm với thuận tiện)";
-                    break;
-                case 'T1':
-                    $ergonomicsRaw = 70.0;
-                    $ergonomicsReason = "Tầng {$normalizedTier} (Tầng thấp)";
-                    break;
-                case 'T4':
-                    $ergonomicsRaw = 50.0;
-                    $ergonomicsReason = "Tầng {$normalizedTier} (Tầng cao)";
-                    break;
-                default:
-                    $ergonomicsRaw = 40.0;
-                    $ergonomicsReason = "Tầng {$normalizedTier} (Ngoài vùng tầm với chuẩn)";
-            }
-
-            $fifoReason = $ageDays === null
-                ? 'Chưa có lịch sử thời gian nhập (mặc định 50 điểm)'
-                : "Lô cũ nhất của biến thể nhập {$ageDays} ngày trước (lịch sử chưa tách theo ô)";
-            $score = round(
-                (0.35 * $fifoRaw) +
-                (0.30 * $consolidationRaw) +
-                (0.25 * $singleStopRaw) +
-                (0.10 * $ergonomicsRaw),
-                2
-            );
+            $oldestItem = $availableItems[0];
+            $oldestTimestamp = $this->getShelfItemTimestamp($oldestItem);
+            $hasCreatedAt = $oldestTimestamp !== PHP_INT_MAX;
+            $oldestCreatedAt = $hasCreatedAt ? date('Y-m-d H:i:s', $oldestTimestamp) : null;
+            $oldestDateFormatted = $hasCreatedAt ? date('d/m/Y H:i', $oldestTimestamp) : null;
+            $ageDays = $hasCreatedAt ? max(0, (int)floor((time() - $oldestTimestamp) / 86400)) : null;
+            $ticketId = is_array($oldestItem) ? ($oldestItem['ticket_id'] ?? null) : null;
 
             $candidates[] = [
                 'shelf_id' => (int)$row['shelf_id'],
@@ -185,57 +140,85 @@ class ExportModel
                 'tier' => $normalizedTier,
                 'qty_in_slot' => $stock,
                 'physical_stock' => (int)$row['physical_stock'],
-                'reserved_qty' => $reservedBySlot[$slotKey] ?? 0,
+                'reserved_qty' => $reservedQty,
                 'max_capacity' => $maxCapacity,
-                'score' => $score,
-                '_breakdown_raw' => [
-                    'fifo' => [$fifoRaw, $fifoReason],
-                    'consolidation' => [$consolidationRaw, $consolidationReason],
-                    'single_stop' => [$singleStopRaw, $singleStopReason],
-                    'ergonomics' => [$ergonomicsRaw, $ergonomicsReason],
-                ],
+                'oldest_created_at' => $oldestCreatedAt,
+                'oldest_date_formatted' => $oldestDateFormatted,
+                'oldest_ticket_id' => $ticketId !== null ? (int)$ticketId : null,
+                'fifo_age_days' => $ageDays,
+                '_fifo_timestamp' => $oldestTimestamp,
+                '_fifo_item_timestamps' => array_map(function ($item) {
+                    return $this->getShelfItemTimestamp($item);
+                }, $availableItems),
             ];
         }
 
         usort($candidates, function ($a, $b) {
-            $scoreCompare = $b['score'] <=> $a['score'];
-            if ($scoreCompare !== 0) return $scoreCompare;
-            $stockCompare = $a['qty_in_slot'] <=> $b['qty_in_slot'];
-            if ($stockCompare !== 0) return $stockCompare;
-            return strcmp($a['shelf_name'] . $a['slot_code'], $b['shelf_name'] . $b['slot_code']);
+            $fifoCompare = $a['_fifo_timestamp'] <=> $b['_fifo_timestamp'];
+            if ($fifoCompare !== 0) return $fifoCompare;
+            $shelfCompare = strcmp($a['shelf_name'], $b['shelf_name']);
+            return $shelfCompare !== 0 ? $shelfCompare : strcmp($a['slot_code'], $b['slot_code']);
+        });
+
+        $fifoUnits = [];
+        foreach ($candidates as $rankIndex => &$candidate) {
+            $candidate['fifo_rank'] = $rankIndex + 1;
+            foreach ($candidate['_fifo_item_timestamps'] as $unitIndex => $timestamp) {
+                $fifoUnits[] = [
+                    'timestamp' => $timestamp,
+                    'shelf_id' => $candidate['shelf_id'],
+                    'slot_code' => $candidate['slot_code'],
+                    'fifo_rank' => $candidate['fifo_rank'],
+                    'oldest_created_at' => $candidate['oldest_created_at'],
+                    'oldest_date_formatted' => $candidate['oldest_date_formatted'],
+                    'unit_index' => $unitIndex,
+                ];
+            }
+            unset($candidate['_fifo_timestamp'], $candidate['_fifo_item_timestamps']);
+        }
+        unset($candidate);
+
+        // Chọn từng đơn vị cũ nhất trên toàn kho rồi mới gom số lượng theo ô.
+        usort($fifoUnits, function ($a, $b) {
+            foreach (['timestamp', 'shelf_id', 'slot_code', 'unit_index'] as $field) {
+                $compare = $a[$field] <=> $b[$field];
+                if ($compare !== 0) return $compare;
+            }
+            return 0;
         });
 
         $remaining = $required_qty;
-        $recommended = [];
-        foreach ($candidates as $rankIndex => &$candidate) {
-            $raw = $candidate['_breakdown_raw'];
-            $candidate['score_breakdown'] = [
-                'rank' => $rankIndex + 1,
-                'fifo' => ['weighted' => round(0.35 * $raw['fifo'][0], 2), 'reason' => $raw['fifo'][1]],
-                'consolidation' => ['weighted' => round(0.30 * $raw['consolidation'][0], 2), 'reason' => $raw['consolidation'][1]],
-                'single_stop' => ['weighted' => round(0.25 * $raw['single_stop'][0], 2), 'reason' => $raw['single_stop'][1]],
-                'ergonomics' => ['weighted' => round(0.10 * $raw['ergonomics'][0], 2), 'reason' => $raw['ergonomics'][1]],
-            ];
-            unset($candidate['_breakdown_raw']);
-
-            $pickQty = min($remaining, $candidate['qty_in_slot']);
-            if ($pickQty > 0) {
-                $recommended[] = [
-                    'shelf_id' => $candidate['shelf_id'],
-                    'slot_code' => $candidate['slot_code'],
-                    'qty' => $pickQty,
-                    'score' => $candidate['score'],
+        $recommendedBySlot = [];
+        foreach ($fifoUnits as $unit) {
+            if ($remaining <= 0) break;
+            $key = $unit['shelf_id'] . '|' . $unit['slot_code'];
+            if (!isset($recommendedBySlot[$key])) {
+                $recommendedBySlot[$key] = [
+                    'shelf_id' => $unit['shelf_id'],
+                    'slot_code' => $unit['slot_code'],
+                    'qty' => 0,
+                    'fifo_rank' => $unit['fifo_rank'],
+                    'oldest_created_at' => $unit['oldest_created_at'],
+                    'oldest_date_formatted' => $unit['oldest_date_formatted'],
                 ];
-                $remaining -= $pickQty;
             }
+            $recommendedBySlot[$key]['qty']++;
+            $remaining--;
         }
-        unset($candidate);
+        $recommended = array_values($recommendedBySlot);
 
         return [
             'slots' => $candidates,
             'recommended' => $recommended,
             'shortage' => max(0, $remaining),
         ];
+    }
+
+    private function getShelfItemTimestamp($item)
+    {
+        if (!is_array($item) || empty($item['created_at'])) return PHP_INT_MAX;
+        $timestamp = strtotime((string)$item['created_at']);
+        return $timestamp === false ? PHP_INT_MAX : $timestamp;
     }
 
 
@@ -325,13 +308,20 @@ class ExportModel
                         $items = &$layout[$tier][$slot];
                         $removed_in_slot = 0;
 
+                        $matchingKeys = [];
                         foreach ($items as $key => $val) {
                             $itemVid = is_array($val) ? ($val['variant_id'] ?? null) : $val;
-                            if ($itemVid == $variant_id && $removed_in_slot < $qty_to_remove) {
-                                unset($items[$key]);
-                                $removed_in_slot++;
-                                $total_removed++;
-                            }
+                            if ($itemVid == $variant_id) $matchingKeys[] = $key;
+                        }
+                        usort($matchingKeys, function ($keyA, $keyB) use ($items) {
+                            $timeCompare = $this->getShelfItemTimestamp($items[$keyA]) <=> $this->getShelfItemTimestamp($items[$keyB]);
+                            return $timeCompare !== 0 ? $timeCompare : ($keyA <=> $keyB);
+                        });
+
+                        foreach (array_slice($matchingKeys, 0, $qty_to_remove) as $key) {
+                            unset($items[$key]);
+                            $removed_in_slot++;
+                            $total_removed++;
                         }
 
                         if ($removed_in_slot > 0) {
@@ -355,35 +345,61 @@ class ExportModel
     private function removeItemsFromShelves($variant_id, $total_to_remove)
     {
         $original_to_remove = $total_to_remove;
-        $sql = "SELECT shelf_id, layout FROM shelves WHERE layout::text LIKE '%" . $variant_id . "%'";
-        $res = pg_query($this->conn, $sql);
+        $res = pg_query($this->conn, "SELECT shelf_id, layout FROM shelves WHERE is_deleted = true AND status = true");
+        if (!$res) return 0;
 
+        $layouts = [];
+        $fifoItems = [];
         while ($row = pg_fetch_assoc($res)) {
-            if ($total_to_remove <= 0) break;
-            $layout = json_decode($row['layout'], true);
-            $changed = false;
-
-            foreach ($layout as $tier => &$slots) {
-                foreach ($slots as $slot_code => &$items) {
-                    if ($total_to_remove <= 0) break;
-                    $slotChanged = false;
-                    foreach ($items as $key => $val) {
-                        $itemVid = is_array($val) ? ($val['variant_id'] ?? null) : $val;
-                        if ($itemVid == $variant_id && $total_to_remove > 0) {
-                            unset($items[$key]);
-                            $total_to_remove--;
-                            $slotChanged = true;
-                            $changed = true;
+            $shelfId = (int)$row['shelf_id'];
+            $layouts[$shelfId] = json_decode($row['layout'], true) ?: [];
+            foreach ($layouts[$shelfId] as $tier => $slots) {
+                foreach ($slots as $slotCode => $items) {
+                    if (!is_array($items)) continue;
+                    foreach ($items as $key => $item) {
+                        $itemVid = is_array($item) ? ($item['variant_id'] ?? null) : $item;
+                        if ($itemVid == $variant_id) {
+                            $fifoItems[] = [
+                                'timestamp' => $this->getShelfItemTimestamp($item),
+                                'shelf_id' => $shelfId,
+                                'tier' => (string)$tier,
+                                'slot' => (string)$slotCode,
+                                'key' => $key,
+                            ];
                         }
-                    }
-                    if ($slotChanged) {
-                        $items = array_values($items);
                     }
                 }
             }
-            if ($changed) {
-                pg_query_params($this->conn, "UPDATE shelves SET layout = $1 WHERE shelf_id = $2", [json_encode($layout), $row['shelf_id']]);
+        }
+
+        usort($fifoItems, function ($a, $b) {
+            foreach (['timestamp', 'shelf_id', 'tier', 'slot', 'key'] as $field) {
+                $compare = $a[$field] <=> $b[$field];
+                if ($compare !== 0) return $compare;
             }
+            return 0;
+        });
+
+        $changedShelves = [];
+        foreach (array_slice($fifoItems, 0, $total_to_remove) as $fifoItem) {
+            unset($layouts[$fifoItem['shelf_id']][$fifoItem['tier']][$fifoItem['slot']][$fifoItem['key']]);
+            $changedShelves[$fifoItem['shelf_id']] = true;
+            $total_to_remove--;
+        }
+
+        foreach (array_keys($changedShelves) as $shelfId) {
+            foreach ($layouts[$shelfId] as &$slots) {
+                foreach ($slots as &$items) {
+                    if (is_array($items)) $items = array_values($items);
+                }
+                unset($items);
+            }
+            unset($slots);
+            pg_query_params(
+                $this->conn,
+                "UPDATE shelves SET layout = $1 WHERE shelf_id = $2",
+                [json_encode($layouts[$shelfId]), $shelfId]
+            );
         }
 
         // Trả về số lượng thực tế đã gỡ thành công khỏi các ô kệ
