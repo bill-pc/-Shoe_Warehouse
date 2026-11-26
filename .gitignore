@@ -11,4 +11,3 @@ public/assets/img_temp
 # Chặn các file cấu hình nhạy cảm chứa API Key/Credentials
 config/pusherconfig.php
 config/QRconfig.php
-config/stockconfig.php
