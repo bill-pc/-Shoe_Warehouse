@@ -69,8 +69,8 @@ $allCategories = $cModel->getAll();
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content shadow rounded-1">
             <div class="modal-header border-bottom flex-column align-items-start">
-                <div class="d-flex w-100 justify-content-between align-items-center">
-                    <h5 class="modal-title fw-bold text-white text-uppercase">NHẬP KHO BẰNG TRÍ TUỆ NHÂN TẠO (AI).</h5>
+                <div class="d-flex w-100 justify-content-between align-items-center mb-2">
+                    <h5 class="modal-title fw-bold text-white text-uppercase">QUY TRÌNH NHẬP KHO</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
             </div>
@@ -104,82 +104,168 @@ $allCategories = $cModel->getAll();
                     </div>
 
                     <div class="col-md-7 p-4 d-flex flex-column position-relative">
-                        <div id="import_ai_upload_zone" class="mb-3 d-none">
-                            <h6 class="fw-bold text-white pb-2 mb-2 border-bottom-glass">1. TẢI ẢNH ĐẠI DIỆN THÙNG HÀNG</h6>
-                            <div class="d-flex gap-2">
-                                <input type="file" id="ai_import_files" class="d-none" multiple accept="image/*" onchange="previewImportImages(this)">
-                                <button type="button" class="btn btn-outline-info fw-bold btn-sm" onclick="document.getElementById('ai_import_files').click()">
-                                    <i class="fas fa-upload me-1"></i>CHỌN ẢNH (CTRL ĐỂ CHỌN NHIỀU)
+                        <!-- NAV TABS: NHẬP AI VS NHẬP THỦ CÔNG -->
+                        <ul class="nav nav-pills mb-3 border-bottom-glass pb-2 d-none" id="import_tabs_header">
+                            <li class="nav-item">
+                                <button class="btn btn-sm btn-outline-info active fw-bold me-2 px-3" id="tab_import_ai_btn" type="button" onclick="switchImportTab('ai')">
+                                    <i class="fas fa-robot me-1"></i>NHẬP KHO AI
                                 </button>
-                                <button type="button" id="btn-scan-import" class="btn btn-info text-dark fw-bold btn-sm d-none" onclick="executeImportScan()">
-                                    <i class="fas fa-magic me-1"></i>QUÉT AI
+                            </li>
+                            <li class="nav-item">
+                                <button class="btn btn-sm btn-outline-light fw-bold px-3" id="tab_import_manual_btn" type="button" onclick="switchImportTab('manual')">
+                                    <i class="fas fa-keyboard me-1"></i>NHẬP KHO THỦ CÔNG
                                 </button>
+                            </li>
+                        </ul>
+
+                        <!-- TAB CONTENT 1: NHẬP AI -->
+                        <div id="tab_import_ai_pane" class="d-flex flex-column flex-grow-1">
+                            <div id="import_ai_upload_zone" class="mb-3 d-none">
+                                <h6 class="fw-bold text-white pb-2 mb-2 border-bottom-glass">1. TẢI ẢNH ĐẠI DIỆN THÙNG HÀNG</h6>
+                                <div class="d-flex gap-2">
+                                    <input type="file" id="ai_import_files" class="d-none" multiple accept="image/*" onchange="previewImportImages(this)">
+                                    <button type="button" class="btn btn-outline-info fw-bold btn-sm" onclick="document.getElementById('ai_import_files').click()">
+                                        <i class="fas fa-upload me-1"></i>CHỌN ẢNH (CTRL ĐỂ CHỌN NHIỀU)
+                                    </button>
+                                    <button type="button" id="btn-scan-import" class="btn btn-info text-dark fw-bold btn-sm d-none" onclick="executeImportScan()">
+                                        <i class="fas fa-magic me-1"></i>QUÉT AI
+                                    </button>
+                                </div>
+                                <div id="import_pre_scan_preview" class="d-flex flex-wrap gap-2 mt-2"></div>
+                                <div id="import_post_scan_area" class="d-flex flex-wrap gap-2 mt-2"></div>
                             </div>
-                            <div id="import_pre_scan_preview" class="d-flex flex-wrap gap-2 mt-2"></div>
-                            <div id="import_post_scan_area" class="d-flex flex-wrap gap-2 mt-2"></div>
+
+                            <div id="import_form_zone" class="d-none flex-grow-1 flex-column p-3 rounded bg-dark border border-secondary">
+                                <h6 class="fw-bold text-warning pb-2 mb-3 border-bottom border-secondary text-uppercase">2. KẾT QUẢ SO KHỚP & NHẬP LIỆU</h6>
+                                <form id="form_temp_import" onsubmit="saveTempImport(event)">
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-6">
+                                            <label class="small text-white-50 fw-bold">HÃNG (AI NHẬN DIỆN)</label>
+                                            <input type="text" id="import_brand" class="form-control form-control-sm bg-black text-white" readonly>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="small text-white-50 fw-bold">MẪU GIÀY (AI NHẬN DIỆN)</label>
+                                            <input type="text" id="import_name" class="form-control form-control-sm bg-black text-white fw-bold" readonly>
+                                        </div>
+                                    </div>
+
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6">
+                                            <label class="small text-info fw-bold">CHỌN MÀU (THEO PHIẾU)</label>
+                                            <select id="import_color" class="form-select form-select-sm fw-bold border-info" onchange="updateImportSizeDropdown()" required></select>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="small text-info fw-bold">CHỌN SIZE (THEO PHIẾU)</label>
+                                            <select id="import_size" class="form-select form-select-sm fw-bold border-info" onchange="autoFillImportQty()" required disabled>
+                                                <option value="">-- Chọn màu trước --</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="p-2 bg-black rounded mb-3 border border-secondary">
+                                        <div class="row align-items-center">
+                                            <div class="col-4">
+                                                <label class="small text-white-50 fw-bold mb-1">SỐ LƯỢNG YÊU CẦU</label>
+                                                <input type="number" id="import_expected_qty" class="form-control form-control-sm bg-dark text-warning fw-bold text-center" readonly>
+                                            </div>
+                                            <div class="col-4">
+                                                <label class="small text-white fw-bold mb-1">THỰC TẾ ĐẾM ĐƯỢC</label>
+                                                <input type="number" id="import_actual_qty" name="actual_qty" class="form-control form-control-sm text-center fw-bold" required min="0" oninput="checkImportDiscrepancy()">
+                                            </div>
+                                            <div class="col-4">
+                                                <label class="small text-white-50 fw-bold mb-1">TÌNH TRẠNG LÔ HÀNG</label>
+                                                <div id="import_status_badge" class="badge bg-secondary w-100 p-2">CHƯA NHẬP DỮ LIỆU</div>
+                                                <input type="hidden" id="import_discrepancy_type" name="discrepancy_type" value="MATCH">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="small text-white-50 fw-bold">GHI CHÚ (NẾU CÓ SAI LỆCH)</label>
+                                        <textarea name="note" id="import_note" class="form-control form-control-sm bg-dark text-white" rows="2" placeholder="Ví dụ: Rách hộp, thiếu hàng do NSX..."></textarea>
+                                    </div>
+
+                                    <input type="hidden" id="import_variant_id" name="variant_id">
+                                    <input type="hidden" id="import_detail_id" name="detail_id">
+                                    <input type="hidden" id="import_temp_image" name="scanned_image">
+
+                                    <button type="submit" id="btn_save_temp" class="btn btn-info text-dark fw-bold w-100 py-2">LƯU BIẾN THỂ NÀY</button>
+                                </form>
+                            </div>
                         </div>
 
-                        <div id="import_form_zone" class="d-none flex-grow-1 flex-column p-3 rounded bg-dark border border-secondary">
-                            <h6 class="fw-bold text-warning pb-2 mb-3 border-bottom border-secondary text-uppercase">2. KẾT QUẢ SO KHỚP & NHẬP LIỆU</h6>
-                            <form id="form_temp_import" onsubmit="saveTempImport(event)">
-                                <div class="row g-2 mb-2">
-                                    <div class="col-6">
-                                        <label class="small text-white-50 fw-bold">HÃNG (AI NHẬN DIỆN)</label>
-                                        <input type="text" id="import_brand" class="form-control form-control-sm bg-black text-white" readonly>
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="small text-white-50 fw-bold">MẪU GIÀY (AI NHẬN DIỆN)</label>
-                                        <input type="text" id="import_name" class="form-control form-control-sm bg-black text-white fw-bold" readonly>
-                                    </div>
-                                </div>
-
-                                <div class="row g-2 mb-3">
-                                    <div class="col-6">
-                                        <label class="small text-info fw-bold">CHỌN MÀU (THEO PHIẾU)</label>
-                                        <select id="import_color" class="form-select form-select-sm fw-bold border-info" onchange="updateImportSizeDropdown()" required></select>
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="small text-info fw-bold">CHỌN SIZE (THEO PHIẾU)</label>
-                                        <select id="import_size" class="form-select form-select-sm fw-bold border-info" onchange="autoFillImportQty()" required disabled>
-                                            <option value="">-- Chọn màu trước --</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div class="p-2 bg-black rounded mb-3 border border-secondary">
-                                    <div class="row align-items-center">
-                                        <div class="col-4">
-                                            <label class="small text-white-50 fw-bold mb-1">SỐ LƯỢNG YÊU CẦU</label>
-                                            <input type="number" id="import_expected_qty" class="form-control form-control-sm bg-dark text-warning fw-bold text-center" readonly>
+                        <!-- TAB CONTENT 2: NHẬP THỦ CÔNG -->
+                        <div id="tab_import_manual_pane" class="d-none flex-column flex-grow-1">
+                            <div class="p-3 rounded bg-dark border border-secondary flex-grow-1 d-flex flex-column">
+                                <h6 class="fw-bold text-info pb-2 mb-3 border-bottom border-secondary text-uppercase">
+                                    <i class="fas fa-edit me-1"></i>NHẬP LIỆU THỦ CÔNG THEO PHIẾU
+                                </h6>
+                                <form id="form_temp_import_manual" onsubmit="saveTempImportManual(event)">
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-6 position-relative">
+                                            <label class="small text-white-50 fw-bold">HÃNG (CHỌN HOẶC GÕ TÌM)</label>
+                                            <input type="text" id="manual_brand_input" class="form-control form-control-sm bg-black text-white fw-bold" placeholder="Gõ tên hãng..." autocomplete="off">
+                                            <div id="manual_brand_suggestions" class="list-group position-absolute w-100 shadow mt-1 d-none" style="z-index: 1060; max-height: 200px; overflow-y: auto;"></div>
                                         </div>
-                                        <div class="col-4">
-                                            <label class="small text-white fw-bold mb-1">THỰC TẾ ĐẾM ĐƯỢC</label>
-                                            <input type="number" id="import_actual_qty" name="actual_qty" class="form-control form-control-sm text-center fw-bold" required min="0" oninput="checkImportDiscrepancy()">
-                                        </div>
-                                        <div class="col-4">
-                                            <label class="small text-white-50 fw-bold mb-1">TÌNH TRẠNG LÔ HÀNG</label>
-                                            <div id="import_status_badge" class="badge bg-secondary w-100 p-2">CHƯA NHẬP DỮ LIỆU</div>
-                                            <input type="hidden" id="import_discrepancy_type" name="discrepancy_type" value="MATCH">
+                                        <div class="col-6 position-relative">
+                                            <label class="small text-white-50 fw-bold">MẪU GIÀY (CHỌN HOẶC GÕ TÌM)</label>
+                                            <input type="text" id="manual_name_input" class="form-control form-control-sm bg-black text-white fw-bold" placeholder="Gõ mẫu giày..." autocomplete="off">
+                                            <div id="manual_name_suggestions" class="list-group position-absolute w-100 shadow mt-1 d-none" style="z-index: 1060; max-height: 200px; overflow-y: auto;"></div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div class="mb-3">
-                                    <label class="small text-white-50 fw-bold">GHI CHÚ (NẾU CÓ SAI LỆCH)</label>
-                                    <textarea name="note" id="import_note" class="form-control form-control-sm bg-dark text-white" rows="2" placeholder="Ví dụ: Rách hộp, thiếu hàng do NSX..."></textarea>
-                                </div>
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6">
+                                            <label class="small text-info fw-bold">CHỌN MÀU</label>
+                                            <select id="manual_import_color" class="form-select form-select-sm fw-bold border-info" onchange="onManualColorChange()" required disabled>
+                                                <option value="">-- Chọn mẫu trước --</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="small text-info fw-bold">CHỌN SIZE</label>
+                                            <select id="manual_import_size" class="form-select form-select-sm fw-bold border-info" onchange="onManualSizeChange()" required disabled>
+                                                <option value="">-- Chọn màu trước --</option>
+                                            </select>
+                                        </div>
+                                    </div>
 
-                                <input type="hidden" id="import_variant_id" name="variant_id">
-                                <input type="hidden" id="import_detail_id" name="detail_id">
-                                <input type="hidden" id="import_temp_image" name="scanned_image">
+                                    <div class="p-2 bg-black rounded mb-3 border border-secondary">
+                                        <div class="row align-items-center">
+                                            <div class="col-4">
+                                                <label class="small text-white-50 fw-bold mb-1">SỐ LƯỢNG YÊU CẦU</label>
+                                                <input type="number" id="manual_import_expected_qty" class="form-control form-control-sm bg-dark text-warning fw-bold text-center" readonly>
+                                            </div>
+                                            <div class="col-4">
+                                                <label class="small text-white fw-bold mb-1">THỰC TẾ ĐẾM ĐƯỢC</label>
+                                                <input type="number" id="manual_import_actual_qty" name="actual_qty" class="form-control form-control-sm text-center fw-bold" required min="0" oninput="checkManualImportDiscrepancy()">
+                                            </div>
+                                            <div class="col-4">
+                                                <label class="small text-white-50 fw-bold mb-1">TÌNH TRẠNG LÔ HÀNG</label>
+                                                <div id="manual_import_status_badge" class="badge bg-secondary w-100 p-2">CHƯA CHỌN SẢN PHẨM</div>
+                                                <input type="hidden" id="manual_import_discrepancy_type" name="discrepancy_type" value="MATCH">
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                <button type="submit" id="btn_save_temp" class="btn btn-info text-dark fw-bold w-100 py-2">LƯU NHÁP BIẾN THỂ NÀY</button>
-                            </form>
+                                    <div class="mb-3">
+                                        <label class="small text-white-50 fw-bold">GHI CHÚ (NẾU CÓ SAI LỆCH)</label>
+                                        <textarea name="note" id="manual_import_note" class="form-control form-control-sm bg-dark text-white" rows="2" placeholder="Ví dụ: Rách hộp, thiếu hàng do NSX..."></textarea>
+                                    </div>
+
+                                    <input type="hidden" id="manual_import_variant_id" name="variant_id">
+                                    <input type="hidden" id="manual_import_detail_id" name="detail_id">
+                                    <input type="hidden" id="manual_import_temp_image" name="scanned_image" value="">
+
+                                    <div id="manual_putaway_locations_container" class="mb-3"></div>
+
+                                    <button type="submit" id="btn_manual_save_temp" class="btn btn-info text-dark fw-bold w-100 py-2" disabled>LƯU BIẾN THỂ NÀY</button>
+                                </form>
+                            </div>
                         </div>
 
                         <div id="import_right_default" class="text-center text-white-50 m-auto">
                             <i class="fas fa-boxes fa-3x mb-3 opacity-25"></i>
-                            <p>Chọn phiếu nhập để bắt đầu quy trình AI</p>
+                            <p>Chọn phiếu nhập để bắt đầu quy trình</p>
                         </div>
 
                     </div>

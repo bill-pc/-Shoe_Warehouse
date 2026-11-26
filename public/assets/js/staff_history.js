@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const tbody = document.getElementById('ticketDetailBody');
         tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i><br>Đang tải dữ liệu...</td></tr>';
 
-        // Mở Modal
+        // Mở modal
         const modal = new bootstrap.Modal(document.getElementById('staffTicketDetailModal'));
         modal.show();
 

@@ -8,6 +8,73 @@ let currentTicketItems = [];
 
 // Khi mở Modal Xuất Kho -> Load danh sách phiếu
 document.getElementById('exportAIModal').addEventListener('show.bs.modal', loadMyExportTickets);
+document.getElementById('exportAIModal').addEventListener('hidden.bs.modal', resetExportModal);
+
+function resetExportModal() {
+    if (currentExportTicketId) {
+        fetch(`index.php?page=tickets&action=update_status&ticket_id=${currentExportTicketId}&status=PAUSED`, { method: 'POST' });
+    }
+
+    currentExportTicketId = null;
+    currentExportTicketCode = "";
+    currentTicketItems = [];
+    currentRequiredQty = 0;
+
+    // Reset giao diện cột trái
+    const step1 = document.getElementById('export_step_1');
+    const step2 = document.getElementById('export_step_2');
+    const ticketItems = document.getElementById('export_ticket_items');
+    const ticketCodeEl = document.getElementById('export_current_ticket_code');
+    const completeBtn = document.getElementById('btn_complete_export');
+
+    if (step1) step1.classList.remove('d-none');
+    if (step2) step2.classList.add('d-none');
+    if (ticketItems) ticketItems.innerHTML = '';
+    if (ticketCodeEl) ticketCodeEl.innerText = 'MÃ PHIẾU: ...';
+    if (completeBtn) completeBtn.classList.add('d-none');
+
+    // Reset giao diện cột phải
+    const rightDefault = document.getElementById('export_right_default');
+    const rightAction = document.getElementById('export_right_action');
+    if (rightDefault) rightDefault.classList.remove('d-none');
+    if (rightAction) {
+        rightAction.classList.add('d-none');
+        rightAction.classList.remove('d-flex');
+    }
+
+    // Reset các trường trong form xuất
+    const nameEl = document.getElementById('autofill_name');
+    const brandEl = document.getElementById('autofill_brand');
+    const colorEl = document.getElementById('autofill_color');
+    const sizeEl = document.getElementById('autofill_size');
+    const reqQtyEl = document.getElementById('autofill_req_qty');
+    const actQtyEl = document.getElementById('autofill_act_qty');
+    const badgeEl = document.getElementById('export_status_badge');
+    const imgEl = document.getElementById('autofill_image');
+    const locListEl = document.getElementById('export_locations_list');
+    const sameTypeListEl = document.getElementById('export_same_type_list');
+    const warningMsgEl = document.getElementById('export_warning_msg');
+
+    if (nameEl) nameEl.value = '';
+    if (brandEl) brandEl.value = '';
+    if (colorEl) colorEl.value = '';
+    if (sizeEl) sizeEl.value = '';
+    if (reqQtyEl) reqQtyEl.value = '';
+    if (actQtyEl) actQtyEl.value = '';
+    if (badgeEl) {
+        badgeEl.className = 'badge bg-secondary w-100 p-2';
+        badgeEl.innerText = 'CHƯA LẤY ĐỦ';
+    }
+    if (imgEl) imgEl.src = '';
+    if (locListEl) locListEl.innerHTML = '';
+    if (sameTypeListEl) sameTypeListEl.innerHTML = '';
+    if (warningMsgEl) warningMsgEl.innerHTML = '';
+
+    // Bỏ tất cả highlight dòng
+    document.querySelectorAll('[id^="export_row_"]').forEach(el => {
+        el.classList.remove('bg-info', 'bg-opacity-25', 'border-info');
+    });
+}
 
 /**
  * Chức năng: Tải danh sách các phiếu xuất kho đang chờ xử lý.
@@ -224,7 +291,7 @@ async function autoFillExportForm(detailId) {
                 ? (savedItem ? parseInt(savedItem.qty) || 0 : 0)
                 : recommendedQty;
             const isRecommended = recommendedQty > 0;
-            const oldestImportDate = l.oldest_date_formatted || l.oldest_created_at || l.fifo_details?.oldest_created_at;
+            const oldestImportDate = l.oldest_date_formatted || l.oldest_created_at;
             const rawTier = String(l.slot_code).split('-')[0];
             const searchText = `kệ ${l.shelf_name} ${l.shelf_name} ô ${l.slot_code} ${l.slot_code} tầng ${l.tier || rawTier} ${l.shelf_name}_${rawTier}`;
 
@@ -248,8 +315,9 @@ async function autoFillExportForm(detailId) {
                            style="width: 80px;" data-shelf-id="${l.shelf_id}" data-slot="${escapeExportHtml(l.slot_code)}"
                            min="0" max="${parseInt(l.qty_in_slot) || 0}" value="${Math.min(selectedQty, parseInt(l.qty_in_slot) || 0)}" oninput="validatePickTotal()">
                 </div>
-                <div class="pick-fifo-details d-none mt-2 p-2 rounded border border-secondary bg-dark small text-white-50">
+                <div class="pick-fifo-details d-none mt-2 p-2 rounded border border-secondary bg-dark small">
                     <div class="fw-bold text-info">Ngày Nhập: ${formatFifoDateTime(oldestImportDate)}</div>
+                    
                 </div>
             </div>`;
         });

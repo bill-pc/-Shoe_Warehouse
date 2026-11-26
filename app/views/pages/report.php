@@ -10,8 +10,6 @@ $brand_dist = $brand_dist ?? [];
 $product_flow = $product_flow ?? [];
 $inventory = $inventory ?? [];
 $summary_data = $summary_data ?? [];
-$stockConfig = require __DIR__ . '/../../../config/stockconfig.php';
-$threshold = (int)$stockConfig['low_stock_threshold'];
 ?>
 
 <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap" rel="stylesheet">
@@ -230,24 +228,41 @@ $threshold = (int)$stockConfig['low_stock_threshold'];
     </div>
 
 
-    <!-- Phân Tích Tồn Kho -->
+    <!-- Phân Tích Tồn Kho & Cảnh Báo Thông Minh -->
     <div class="card-custom">
         <?php
-        $groupedInventory = [];
         $uniqueBrands = [];
+        $statusCounts = [
+            'ALL'               => count($inventory),
+            'OUT_OF_STOCK'      => 0,
+            'LOW_STOCK'         => 0,
+            'NORMAL'            => 0,
+            'HIGH_STOCK'        => 0,
+            'INSUFFICIENT_DATA' => 0,
+        ];
         foreach ($inventory as $item) {
             $brand = $item['category_name'];
-            $groupedInventory[$item['product_name']]['brand'] = $brand;
-            $groupedInventory[$item['product_name']]['variants'][] = $item;
             if (!in_array($brand, $uniqueBrands)) $uniqueBrands[] = $brand;
+            $st = $item['status_code'] ?? 'INSUFFICIENT_DATA';
+            if (isset($statusCounts[$st])) $statusCounts[$st]++;
         }
         sort($uniqueBrands);
         ?>
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h6 class="section-title m-0" id="inventoryTitle" style="border: none;">Phân Tích Tồn Kho Hiện Tại</h6>
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <h6 class="section-title m-0" id="inventoryTitle" style="border: none;">Phân Tích Tồn Kho & Đề Xuất Nhập Hàng (30 Ngày)</h6>
 
-            <div class="d-flex align-items-center">
-                <label for="brandFilter" class="form-label mb-0 me-2 text-muted small fw-bold">Lọc:</label>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <label for="statusFilter" class="form-label mb-0 text-muted small fw-bold">Trạng thái:</label>
+                <select id="statusFilter" class="form-select form-select-sm shadow-sm" style="width: auto;">
+                    <option value="ALL">Tất cả (<?= $statusCounts['ALL'] ?>)</option>
+                    <option value="OUT_OF_STOCK">Hết hàng (<?= $statusCounts['OUT_OF_STOCK'] ?>)</option>
+                    <option value="LOW_STOCK">Sắp hết hàng (<?= $statusCounts['LOW_STOCK'] ?>)</option>
+                    <option value="NORMAL">Bình thường (<?= $statusCounts['NORMAL'] ?>)</option>
+                    <option value="HIGH_STOCK">Tồn kho cao (<?= $statusCounts['HIGH_STOCK'] ?>)</option>
+                    <option value="INSUFFICIENT_DATA">Chưa đủ dữ liệu (<?= $statusCounts['INSUFFICIENT_DATA'] ?>)</option>
+                </select>
+
+                <label for="brandFilter" class="form-label mb-0 ms-2 text-muted small fw-bold">Hãng:</label>
                 <select id="brandFilter" class="form-select form-select-sm shadow-sm" style="width: auto;">
                     <option value="ALL">Tất cả thương hiệu</option>
                     <?php foreach ($uniqueBrands as $b): ?>
@@ -257,23 +272,96 @@ $threshold = (int)$stockConfig['low_stock_threshold'];
             </div>
         </div>
 
-        <div class="inventory-grid" id="inventoryGrid">
-            <?php foreach ($groupedInventory as $pName => $pData): ?>
-                <div class="inv-product-card" data-brand="<?= htmlspecialchars($pData['brand']) ?>">
-                    <div class="inv-header">
-                        <strong class="text-truncate"><?= htmlspecialchars($pName) ?></strong>
-                        <span class="inv-brand-badge"><?= htmlspecialchars($pData['brand']) ?></span>
-                    </div>
-                    <div class="inv-body">
-                        <?php foreach ($pData['variants'] as $var): ?>
-                            <div class="stock-chip <?= $var['stock'] < $threshold ? 'danger' : '' ?>">
-                                Sz <?= $var['size'] ?> | <?= htmlspecialchars($var['color']) ?>: <b class="variant-stock"><?= $var['stock'] ?></b>
-                            </div>
-                        <?php endforeach; ?>
-
-                    </div>
+        <!-- Thẻ tổng hợp số biến thể theo trạng thái -->
+        <div class="row g-2 mb-3">
+            <div class="col-6 col-md">
+                <div class="p-2 rounded border bg-light text-center">
+                    <div class="small text-muted">Hết hàng</div>
+                    <div class="fw-bold text-danger fs-5"><?= $statusCounts['OUT_OF_STOCK'] ?></div>
                 </div>
-            <?php endforeach; ?>
+            </div>
+            <div class="col-6 col-md">
+                <div class="p-2 rounded border bg-light text-center">
+                    <div class="small text-muted">Sắp hết hàng</div>
+                    <div class="fw-bold text-warning fs-5"><?= $statusCounts['LOW_STOCK'] ?></div>
+                </div>
+            </div>
+            <div class="col-6 col-md">
+                <div class="p-2 rounded border bg-light text-center">
+                    <div class="small text-muted">Bình thường</div>
+                    <div class="fw-bold text-success fs-5"><?= $statusCounts['NORMAL'] ?></div>
+                </div>
+            </div>
+            <div class="col-6 col-md">
+                <div class="p-2 rounded border bg-light text-center">
+                    <div class="small text-muted">Tồn kho cao</div>
+                    <div class="fw-bold text-info fs-5"><?= $statusCounts['HIGH_STOCK'] ?></div>
+                </div>
+            </div>
+            <div class="col-12 col-md">
+                <div class="p-2 rounded border bg-light text-center">
+                    <div class="small text-muted">Chưa đủ dữ liệu</div>
+                    <div class="fw-bold text-secondary fs-5"><?= $statusCounts['INSUFFICIENT_DATA'] ?></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
+            <table class="table table-hover table-bordered align-middle mb-0 small" id="smartInventoryTable">
+                <thead class="table-dark position-sticky top-0 text-center" style="z-index: 5;">
+                    <tr>
+                        <th>Hình ảnh</th>
+                        <th>Mã SP (SKU)</th>
+                        <th>Tên sản phẩm</th>
+                        <th>Màu sắc</th>
+                        <th>Kích thước</th>
+                        <th>Tồn hiện tại</th>
+                        <th>Xuất 30 ngày</th>
+                        <th>Ngưỡng thấp (20%)</th>
+                        <th>Mục tiêu (70%)</th>
+                        <th>Đề xuất nhập</th>
+                        <th>Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($inventory)): ?>
+                        <tr>
+                            <td colspan="11" class="text-center py-4 text-muted">Chưa có dữ liệu biến thể trong kho.</td>
+                        </tr>
+                    <?php else: foreach ($inventory as $var): ?>
+                        <tr class="inv-variant-row"
+                            data-brand="<?= htmlspecialchars($var['category_name']) ?>"
+                            data-status="<?= htmlspecialchars($var['status_code'] ?? 'INSUFFICIENT_DATA') ?>"
+                            data-stock="<?= (int)$var['stock'] ?>">
+                            <td class="text-center">
+                                <img src="assets/img_product/<?= htmlspecialchars(!empty($var['product_image']) ? $var['product_image'] : 'default_shoe.png') ?>"
+                                     alt="<?= htmlspecialchars($var['product_name']) ?>"
+                                     class="rounded border bg-white"
+                                     style="width: 48px; height: 48px; object-fit: contain;">
+                            </td>
+                            <td class="text-center fw-bold text-secondary"><?= htmlspecialchars($var['sku'] ?? 'N/A') ?></td>
+                            <td>
+                                <div class="fw-bold text-dark"><?= htmlspecialchars($var['product_name']) ?></div>
+                                <span class="badge bg-light text-dark border"><?= htmlspecialchars($var['category_name']) ?></span>
+                            </td>
+                            <td class="text-center"><?= htmlspecialchars($var['color']) ?></td>
+                            <td class="text-center fw-bold"><?= htmlspecialchars($var['size']) ?></td>
+                            <td class="text-center fw-bold variant-stock"><?= (int)$var['stock'] ?></td>
+                            <td class="text-center"><?= (int)($var['total_export_30d'] ?? 0) ?></td>
+                            <td class="text-center"><?= $var['min_stock'] !== null ? (int)$var['min_stock'] : '-' ?></td>
+                            <td class="text-center"><?= $var['target_stock'] !== null ? (int)$var['target_stock'] : '-' ?></td>
+                            <td class="text-center fw-bold <?= ($var['suggested_import'] ?? 0) > 0 ? 'text-primary' : 'text-muted' ?>">
+                                <?= $var['suggested_import'] !== null ? (int)$var['suggested_import'] : '-' ?>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge <?= htmlspecialchars($var['badge_class'] ?? 'bg-secondary') ?>">
+                                    <?= htmlspecialchars($var['status_label'] ?? 'Chưa đủ dữ liệu') ?>
+                                </span>
+                            </td>
+                        </tr>
+                    <?php endforeach; endif; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -327,4 +415,4 @@ $threshold = (int)$stockConfig['low_stock_threshold'];
     window.inventoryData = <?= json_encode($inventory) ?>; // NẠP THÊM BIẾN NÀY ĐỂ JS XỬ LÝ GOM NHÓM
 </script>
 
-<script src="assets/js/report.js"></script>
+<script src="assets/js/report.js?v=<?= filemtime(__DIR__ . '/../../../public/assets/js/report.js') ?>"></script>

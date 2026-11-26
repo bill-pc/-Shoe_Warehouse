@@ -89,8 +89,18 @@ foreach ($suggestions as $s) {
                                                     <img src="assets/img_product/<?= $item['product_image'] ?? 'default.jpg' ?>"
                                                         style="width: 40px; height: 40px; object-fit: cover;" class="rounded me-2">
                                                     <div style="font-size: 0.8rem;">
-                                                        <div class="fw-bold"><?= $item['product_name'] ?></div>
-                                                        <div class="text-muted">Size: <?= $item['size'] ?> | Tồn: <span class="text-danger"><?= $item['stock'] ?></span></div>
+                                                        <div class="fw-bold"><?= htmlspecialchars($item['product_name']) ?></div>
+                                                        <div class="text-muted">
+                                                            <?= htmlspecialchars($item['color']) ?> | Size: <?= htmlspecialchars($item['size']) ?> |
+                                                            Tồn: <span class="text-danger fw-bold"><?= (int)$item['stock'] ?></span> |
+                                                            Xuất 30d: <span class="text-dark fw-bold"><?= (int)$item['total_export_30d'] ?></span>
+                                                        </div>
+                                                        <div>
+                                                            <span class="badge <?= $item['badge_class'] ?? 'bg-warning text-dark' ?>"><?= $item['status_label'] ?? 'Sắp hết hàng' ?></span>
+                                                            <?php if (isset($item['suggested_import']) && $item['suggested_import'] !== null): ?>
+                                                                <span class="ms-1 text-primary fw-bold">Đề xuất nhập: <?= (int)$item['suggested_import'] ?> đôi</span>
+                                                            <?php endif; ?>
+                                                        </div>
                                                     </div>
                                                 </li>
                                             <?php endforeach; ?>
@@ -184,6 +194,7 @@ foreach ($suggestions as $s) {
                                     <select name="variant_id[]" class="form-select variant-select" disabled required>
                                         <option value="">Chọn Mẫu trước</option>
                                     </select>
+                                    <div class="smart-stock-info small mt-1 text-muted"></div>
                                 </td>
                                 <td>
                                     <input type="number" name="quantity[]" class="form-control text-center fw-bold" min="1" placeholder="SL" required>

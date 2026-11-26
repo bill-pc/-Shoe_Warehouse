@@ -292,36 +292,73 @@ class ReportController
         $sheet2 = $spreadsheet->createSheet();
         $sheet2->setTitle('Tồn kho theo hãng');
 
-        $sheet2->setCellValue('A1', 'Tên hãng');
-        $sheet2->setCellValue('B1', 'Tên sản phẩm');
-        $sheet2->setCellValue('C1', 'Màu');
-        $sheet2->setCellValue('D1', 'Size');
-        $sheet2->setCellValue('E1', 'Tổng số lượng');
+        $sheet2->setCellValue('A1', 'Mã SKU');
+        $sheet2->setCellValue('B1', 'Tên hãng');
+        $sheet2->setCellValue('C1', 'Tên sản phẩm');
+        $sheet2->setCellValue('D1', 'Màu');
+        $sheet2->setCellValue('E1', 'Size');
+        $sheet2->setCellValue('F1', 'Tổng số lượng');
+        $sheet2->setCellValue('G1', 'Trạng thái');
+
+        // Bảng màu highlight cho từng trạng thái tồn kho
+        $statusStyles = [
+            'OUT_OF_STOCK' => [
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F8D7DA']],
+                'font' => ['bold' => true, 'color' => ['rgb' => '842029']],
+            ],
+            'LOW_STOCK' => [
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFF3CD']],
+                'font' => ['bold' => true, 'color' => ['rgb' => '664D03']],
+            ],
+            'NORMAL' => [
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D1E7DD']],
+                'font' => ['bold' => true, 'color' => ['rgb' => '0F5132']],
+            ],
+            'HIGH_STOCK' => [
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'CFF4FC']],
+                'font' => ['bold' => true, 'color' => ['rgb' => '055160']],
+            ],
+            'INSUFFICIENT_DATA' => [
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E2E3E5']],
+                'font' => ['bold' => false, 'color' => ['rgb' => '41464B']],
+            ],
+        ];
 
         $rowIdx = 2;
         foreach ($inventory as $item) {
-            $sheet2->setCellValue('A' . $rowIdx, $item['brand']);
-            $sheet2->setCellValue('B' . $rowIdx, $item['product_name']);
-            $sheet2->setCellValue('C' . $rowIdx, $item['color']);
-            $sheet2->setCellValue('D' . $rowIdx, $item['size']);
-            $sheet2->setCellValue('E' . $rowIdx, (int)$item['total_quantity']);
+            $statusCode = $item['status_code'] ?? 'INSUFFICIENT_DATA';
+            $statusLabel = $item['status_label'] ?? 'Chưa đủ dữ liệu';
+
+            $sheet2->setCellValue('A' . $rowIdx, $item['sku']);
+            $sheet2->setCellValue('B' . $rowIdx, $item['brand']);
+            $sheet2->setCellValue('C' . $rowIdx, $item['product_name']);
+            $sheet2->setCellValue('D' . $rowIdx, $item['color']);
+            $sheet2->setCellValue('E' . $rowIdx, $item['size']);
+            $sheet2->setCellValue('F' . $rowIdx, (int)$item['total_quantity']);
+            $sheet2->setCellValue('G' . $rowIdx, $statusLabel);
+
+            if (isset($statusStyles[$statusCode])) {
+                $sheet2->getStyle('G' . $rowIdx)->applyFromArray($statusStyles[$statusCode]);
+            }
             $rowIdx++;
         }
 
-        $sheet2->getStyle('A1:E1')->applyFromArray($headerStyle);
+        $sheet2->getStyle('A1:G1')->applyFromArray($headerStyle);
         $sheet2->getRowDimension(1)->setRowHeight(28);
 
         if ($rowIdx > 2) {
-            $sheet2->getStyle("A2:E" . ($rowIdx - 1))->applyFromArray($borderStyle);
-            $sheet2->getStyle("C2:D" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet2->getStyle("E2:E" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            $sheet2->getStyle("A2:G" . ($rowIdx - 1))->applyFromArray($borderStyle);
+            $sheet2->getStyle("A2:A" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet2->getStyle("D2:E" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet2->getStyle("F2:F" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            $sheet2->getStyle("G2:G" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             // Bật bộ lọc AutoFilter
-            $sheet2->setAutoFilter("A1:E" . ($rowIdx - 1));
+            $sheet2->setAutoFilter("A1:G" . ($rowIdx - 1));
         } else {
-            $sheet2->setAutoFilter("A1:E1");
+            $sheet2->setAutoFilter("A1:G1");
         }
 
-        foreach (range('A', 'E') as $col) {
+        foreach (range('A', 'G') as $col) {
             $sheet2->getColumnDimension($col)->setAutoSize(true);
         }
 
@@ -333,39 +370,41 @@ class ReportController
 
         $sheet3->setCellValue('A1', 'Mã phiếu');
         $sheet3->setCellValue('B1', 'Mã lô hàng');
-        $sheet3->setCellValue('C1', 'Tên hãng');
-        $sheet3->setCellValue('D1', 'Tên sản phẩm');
-        $sheet3->setCellValue('E1', 'Màu');
-        $sheet3->setCellValue('F1', 'Size');
-        $sheet3->setCellValue('G1', 'Tổng số lượng');
+        $sheet3->setCellValue('C1', 'Mã SKU');
+        $sheet3->setCellValue('D1', 'Tên hãng');
+        $sheet3->setCellValue('E1', 'Tên sản phẩm');
+        $sheet3->setCellValue('F1', 'Màu');
+        $sheet3->setCellValue('G1', 'Size');
+        $sheet3->setCellValue('H1', 'Tổng số lượng');
 
         $rowIdx = 2;
         foreach ($importData as $item) {
             $sheet3->setCellValue('A' . $rowIdx, $item['ticket_code']);
             $sheet3->setCellValue('B' . $rowIdx, $item['batch_code']);
-            $sheet3->setCellValue('C' . $rowIdx, $item['brand']);
-            $sheet3->setCellValue('D' . $rowIdx, $item['product_name']);
-            $sheet3->setCellValue('E' . $rowIdx, $item['color']);
-            $sheet3->setCellValue('F' . $rowIdx, $item['size']);
-            $sheet3->setCellValue('G' . $rowIdx, (int)$item['total_quantity']);
+            $sheet3->setCellValue('C' . $rowIdx, $item['sku']);
+            $sheet3->setCellValue('D' . $rowIdx, $item['brand']);
+            $sheet3->setCellValue('E' . $rowIdx, $item['product_name']);
+            $sheet3->setCellValue('F' . $rowIdx, $item['color']);
+            $sheet3->setCellValue('G' . $rowIdx, $item['size']);
+            $sheet3->setCellValue('H' . $rowIdx, (int)$item['total_quantity']);
             $rowIdx++;
         }
 
-        $sheet3->getStyle('A1:G1')->applyFromArray($headerStyle);
+        $sheet3->getStyle('A1:H1')->applyFromArray($headerStyle);
         $sheet3->getRowDimension(1)->setRowHeight(28);
 
         if ($rowIdx > 2) {
-            $sheet3->getStyle("A2:G" . ($rowIdx - 1))->applyFromArray($borderStyle);
-            $sheet3->getStyle("A2:B" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet3->getStyle("E2:F" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet3->getStyle("G2:G" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            $sheet3->getStyle("A2:H" . ($rowIdx - 1))->applyFromArray($borderStyle);
+            $sheet3->getStyle("A2:C" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet3->getStyle("F2:G" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet3->getStyle("H2:H" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
             // Bật bộ lọc AutoFilter
-            $sheet3->setAutoFilter("A1:G" . ($rowIdx - 1));
+            $sheet3->setAutoFilter("A1:H" . ($rowIdx - 1));
         } else {
-            $sheet3->setAutoFilter("A1:G1");
+            $sheet3->setAutoFilter("A1:H1");
         }
 
-        foreach (range('A', 'G') as $col) {
+        foreach (range('A', 'H') as $col) {
             $sheet3->getColumnDimension($col)->setAutoSize(true);
         }
 
@@ -377,39 +416,41 @@ class ReportController
 
         $sheet4->setCellValue('A1', 'Mã phiếu');
         $sheet4->setCellValue('B1', 'Mã lô hàng');
-        $sheet4->setCellValue('C1', 'Tên hãng');
-        $sheet4->setCellValue('D1', 'Tên sản phẩm');
-        $sheet4->setCellValue('E1', 'Màu');
-        $sheet4->setCellValue('F1', 'Size');
-        $sheet4->setCellValue('G1', 'Tổng số lượng');
+        $sheet4->setCellValue('C1', 'Mã SKU');
+        $sheet4->setCellValue('D1', 'Tên hãng');
+        $sheet4->setCellValue('E1', 'Tên sản phẩm');
+        $sheet4->setCellValue('F1', 'Màu');
+        $sheet4->setCellValue('G1', 'Size');
+        $sheet4->setCellValue('H1', 'Tổng số lượng');
 
         $rowIdx = 2;
         foreach ($exportData as $item) {
             $sheet4->setCellValue('A' . $rowIdx, $item['ticket_code']);
             $sheet4->setCellValue('B' . $rowIdx, $item['batch_code']);
-            $sheet4->setCellValue('C' . $rowIdx, $item['brand']);
-            $sheet4->setCellValue('D' . $rowIdx, $item['product_name']);
-            $sheet4->setCellValue('E' . $rowIdx, $item['color']);
-            $sheet4->setCellValue('F' . $rowIdx, $item['size']);
-            $sheet4->setCellValue('G' . $rowIdx, (int)$item['total_quantity']);
+            $sheet4->setCellValue('C' . $rowIdx, $item['sku']);
+            $sheet4->setCellValue('D' . $rowIdx, $item['brand']);
+            $sheet4->setCellValue('E' . $rowIdx, $item['product_name']);
+            $sheet4->setCellValue('F' . $rowIdx, $item['color']);
+            $sheet4->setCellValue('G' . $rowIdx, $item['size']);
+            $sheet4->setCellValue('H' . $rowIdx, (int)$item['total_quantity']);
             $rowIdx++;
         }
 
-        $sheet4->getStyle('A1:G1')->applyFromArray($headerStyle);
+        $sheet4->getStyle('A1:H1')->applyFromArray($headerStyle);
         $sheet4->getRowDimension(1)->setRowHeight(28);
 
         if ($rowIdx > 2) {
-            $sheet4->getStyle("A2:G" . ($rowIdx - 1))->applyFromArray($borderStyle);
-            $sheet4->getStyle("A2:B" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet4->getStyle("E2:F" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet4->getStyle("G2:G" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            $sheet4->getStyle("A2:H" . ($rowIdx - 1))->applyFromArray($borderStyle);
+            $sheet4->getStyle("A2:C" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet4->getStyle("F2:G" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet4->getStyle("H2:H" . ($rowIdx - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
             // Bật bộ lọc AutoFilter
-            $sheet4->setAutoFilter("A1:G" . ($rowIdx - 1));
+            $sheet4->setAutoFilter("A1:H" . ($rowIdx - 1));
         } else {
-            $sheet4->setAutoFilter("A1:G1");
+            $sheet4->setAutoFilter("A1:H1");
         }
 
-        foreach (range('A', 'G') as $col) {
+        foreach (range('A', 'H') as $col) {
             $sheet4->getColumnDimension($col)->setAutoSize(true);
         }
 

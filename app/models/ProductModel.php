@@ -451,7 +451,13 @@ class ProductModel
                 foreach ($layout as $tier => &$slots) {
                     foreach ($slots as $slotKey => &$shoesArray) {
 
-                        $indexesToDelete = array_keys($shoesArray, (int)$variantId);
+                        $indexesToDelete = [];
+                        foreach ($shoesArray as $idx => $shoeItem) {
+                            $itemVid = is_array($shoeItem) ? (int)($shoeItem['variant_id'] ?? 0) : (int)$shoeItem;
+                            if ($itemVid === (int)$variantId) {
+                                $indexesToDelete[] = $idx;
+                            }
+                        }
 
                         if (!empty($indexesToDelete)) {
                             foreach ($indexesToDelete as $idx) {

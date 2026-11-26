@@ -35,11 +35,25 @@ class ReportModel
         $stats['period_exports'] = $row_tx['total_exp'] ?? 0;
 
 
-        $stockConfig = require __DIR__ . '/../../config/stockconfig.php';
-        $threshold = (int)$stockConfig['low_stock_threshold'];
+        require_once __DIR__ . '/../../config/stockconfig.php';
+        $exportSubquery = getExport30DaysSqlSubquery();
 
-        $sql_shortage = "SELECT COUNT(*) as total FROM product_variants WHERE stock < 5 AND is_deleted = false";
-        $stats['shortage_count'] = pg_fetch_assoc(pg_query($this->conn, $sql_shortage))['total'] ?? 0;
+        $sql_shortage = "SELECT pv.stock, COALESCE(exp30.total_export_30d, 0) AS total_export_30d
+                         FROM product_variants pv
+                         JOIN products p ON pv.product_id = p.product_id
+                         JOIN categories c ON p.category_id = c.category_id
+                         LEFT JOIN ({$exportSubquery}) exp30 ON pv.variant_id = exp30.variant_id
+                         WHERE pv.is_deleted = false AND p.is_deleted = false AND c.is_deleted = false";
+        $res_shortage = pg_query($this->conn, $sql_shortage);
+        $shortageRows = $res_shortage ? (pg_fetch_all($res_shortage) ?: []) : [];
+        $shortageCount = 0;
+        foreach ($shortageRows as $r) {
+            $m = calculateSmartStockMetrics($r['stock'], $r['total_export_30d']);
+            if ($m['is_warning']) {
+                $shortageCount++;
+            }
+        }
+        $stats['shortage_count'] = $shortageCount;
 
         return $stats;
     }
@@ -180,11 +194,27 @@ class ReportModel
 
     public function getDetailedInventory()
     {
-        $sql = "SELECT p.product_name, pv.size, pv.color, pv.stock, c.category_name
-                FROM product_variants pv JOIN products p ON pv.product_id = p.product_id
+        require_once __DIR__ . '/../../config/stockconfig.php';
+        $exportSubquery = getExport30DaysSqlSubquery();
+
+        $sql = "SELECT pv.variant_id, COALESCE(pv.sku, 'N/A') as sku, p.product_id, p.product_name, p.product_image,
+                       pv.size, pv.color, pv.stock, c.category_name,
+                       COALESCE(exp30.total_export_30d, 0) AS total_export_30d
+                FROM product_variants pv
+                JOIN products p ON pv.product_id = p.product_id
                 JOIN categories c ON p.category_id = c.category_id
-                WHERE pv.is_deleted = false ORDER BY p.product_name ASC, pv.size ASC";
-        return pg_fetch_all(pg_query($this->conn, $sql)) ?: [];
+                LEFT JOIN ({$exportSubquery}) exp30 ON pv.variant_id = exp30.variant_id
+                WHERE pv.is_deleted = false AND p.is_deleted = false AND c.is_deleted = false
+                ORDER BY p.product_name ASC, pv.color ASC, pv.size ASC";
+        $rows = pg_fetch_all(pg_query($this->conn, $sql)) ?: [];
+
+        foreach ($rows as &$row) {
+            $metrics = calculateSmartStockMetrics($row['stock'], $row['total_export_30d']);
+            $row = array_merge($row, $metrics);
+        }
+        unset($row);
+
+        return $rows;
     }
 
     public function getStaffPerformance()
@@ -217,27 +247,42 @@ class ReportModel
     }
 
     /**
-     * Sheet 2: Tồn kho gom nhóm theo hãng (Tên hãng, Tên sản phẩm, Màu, Size, Tổng số lượng)
+     * Sheet 2: Tồn kho gom nhóm theo hãng (Mã SKU, Tên hãng, Tên sản phẩm, Màu, Size, Tổng số lượng, Trạng thái)
      */
     public function getExcelInventory()
     {
+        require_once __DIR__ . '/../../config/stockconfig.php';
+        $exportSubquery = getExport30DaysSqlSubquery();
+
         $sql = "SELECT 
+                    COALESCE(pv.sku, 'N/A') as sku,
                     c.category_name as brand,
                     p.product_name,
                     pv.color,
                     pv.size,
-                    pv.stock as total_quantity
+                    pv.stock as total_quantity,
+                    COALESCE(exp30.total_export_30d, 0) as total_export_30d
                 FROM product_variants pv
                 JOIN products p ON pv.product_id = p.product_id
                 JOIN categories c ON p.category_id = c.category_id
+                LEFT JOIN ({$exportSubquery}) exp30 ON pv.variant_id = exp30.variant_id
                 WHERE pv.is_deleted = false AND p.is_deleted = false AND c.is_deleted = false
                 ORDER BY c.category_name ASC, p.product_name ASC, pv.color ASC, pv.size ASC";
         $res = pg_query($this->conn, $sql);
-        return pg_fetch_all($res) ?: [];
+        $rows = pg_fetch_all($res) ?: [];
+
+        foreach ($rows as &$row) {
+            $metrics = calculateSmartStockMetrics($row['total_quantity'], $row['total_export_30d']);
+            $row['status_code'] = $metrics['status_code'];
+            $row['status_label'] = $metrics['status_label'];
+        }
+        unset($row);
+
+        return $rows;
     }
 
     /**
-     * Sheet 3 & 4: Thông tin nhập kho / xuất kho theo khoảng thời gian (Mã phiếu, Mã lô hàng, Tên hãng, Tên sản phẩm, Màu, Size, Tổng số lượng)
+     * Sheet 3 & 4: Thông tin nhập kho / xuất kho theo khoảng thời gian (Mã phiếu, Mã lô hàng, Mã SKU, Tên hãng, Tên sản phẩm, Màu, Size, Tổng số lượng)
      */
     public function getExcelTransactionReport($type, $startDate = null, $endDate = null)
     {
@@ -245,6 +290,7 @@ class ReportModel
         $sql = "SELECT 
                     COALESCE(tk.ticket_code, t.reference_id, 'N/A') as ticket_code,
                     COALESCE(tk.batch_code, 'N/A') as batch_code,
+                    COALESCE(pv.sku, 'N/A') as sku,
                     c.category_name as brand,
                     p.product_name,
                     pv.color,
@@ -264,7 +310,7 @@ class ReportModel
             $params[] = $endDate . ' 23:59:59';
         }
 
-        $sql .= " GROUP BY tk.ticket_code, t.reference_id, tk.batch_code, c.category_name, p.product_name, pv.color, pv.size
+        $sql .= " GROUP BY tk.ticket_code, t.reference_id, tk.batch_code, pv.sku, c.category_name, p.product_name, pv.color, pv.size
                   ORDER BY tk.ticket_code ASC, c.category_name ASC, p.product_name ASC, pv.color ASC, pv.size ASC";
 
         $res = pg_query_params($this->conn, $sql, $params);
@@ -276,8 +322,10 @@ class ReportModel
     // --- CẤP 1: Lấy tổng hợp theo Brand ---
     public function getBrandDetail($type)
     {
-        $stockConfig = require __DIR__ . '/../../config/stockconfig.php';
-        $threshold = (int)$stockConfig['low_stock_threshold'];
+        require_once __DIR__ . '/../../config/stockconfig.php';
+        $minRatio = (float)getSmartStockConfig()['min_stock_ratio'];
+        $exportSubquery = getExport30DaysSqlSubquery();
+
         if ($type === 'stock') {
             $sql = "SELECT c.category_id, c.category_name as brand, SUM(pv.stock) as total 
                 FROM categories c 
@@ -289,13 +337,16 @@ class ReportModel
                 GROUP BY c.category_id, c.category_name";
         } elseif ($type === 'shortage') {
             $sql = "SELECT c.category_id, c.category_name as brand, COUNT(pv.variant_id) as total 
-        FROM categories c 
-        JOIN products p ON c.category_id = p.category_id 
-        JOIN product_variants pv ON p.product_id = pv.product_id 
-        WHERE pv.stock < $threshold AND pv.is_deleted = false AND pv.status = true
-          AND p.is_deleted = false AND p.status = true
-          AND c.is_deleted = false AND c.status = true
-        GROUP BY c.category_id, c.category_name";
+                FROM categories c 
+                JOIN products p ON c.category_id = p.category_id 
+                JOIN product_variants pv ON p.product_id = pv.product_id 
+                JOIN ({$exportSubquery}) exp30 ON pv.variant_id = exp30.variant_id
+                WHERE exp30.total_export_30d > 0
+                  AND pv.stock <= CEIL(exp30.total_export_30d * {$minRatio})
+                  AND pv.is_deleted = false AND pv.status = true
+                  AND p.is_deleted = false AND p.status = true
+                  AND c.is_deleted = false AND c.status = true
+                GROUP BY c.category_id, c.category_name";
         } else {
             $tType = strtoupper($type); // IMPORT hoặc EXPORT
             $sql = "SELECT c.category_id, c.category_name as brand, SUM(t.quantity) as total 
@@ -315,8 +366,10 @@ class ReportModel
     // --- CẤP 2: Lấy danh sách sản phẩm theo từng Brand ---
     public function getProductsByBrand($brandId, $type)
     {
-        $stockConfig = require __DIR__ . '/../../config/stockconfig.php';
-        $threshold = (int)$stockConfig['low_stock_threshold'];
+        require_once __DIR__ . '/../../config/stockconfig.php';
+        $minRatio = (float)getSmartStockConfig()['min_stock_ratio'];
+        $exportSubquery = getExport30DaysSqlSubquery();
+
         if ($type === 'stock') {
             $sql = "SELECT p.product_id, p.product_name, SUM(pv.stock) as total 
                 FROM products p 
@@ -326,10 +379,15 @@ class ReportModel
                 GROUP BY p.product_id, p.product_name";
         } elseif ($type === 'shortage') {
             $sql = "SELECT p.product_id, p.product_name, COUNT(pv.variant_id) as total 
-        FROM products p 
-        JOIN product_variants pv ON p.product_id = pv.product_id 
-        WHERE p.category_id = $1 AND pv.stock < $threshold AND pv.is_deleted = false AND pv.status = true
-        GROUP BY p.product_id, p.product_name";
+                FROM products p 
+                JOIN product_variants pv ON p.product_id = pv.product_id 
+                JOIN ({$exportSubquery}) exp30 ON pv.variant_id = exp30.variant_id
+                WHERE p.category_id = $1
+                  AND exp30.total_export_30d > 0
+                  AND pv.stock <= CEIL(exp30.total_export_30d * {$minRatio})
+                  AND pv.is_deleted = false AND pv.status = true
+                  AND p.is_deleted = false AND p.status = true
+                GROUP BY p.product_id, p.product_name";
         } else {
             $tType = strtoupper($type);
             $sql = "SELECT p.product_id, p.product_name, SUM(t.quantity) as total 
@@ -348,13 +406,22 @@ class ReportModel
     // --- CẤP 3: Lấy chi tiết biến thể (Size/Color) của một sản phẩm ---
     public function getVariantsByProduct($productId, $type)
     {
-        $stockConfig = require __DIR__ . '/../../config/stockconfig.php';
-        $threshold = (int)$stockConfig['low_stock_threshold'];
-        if ($type === 'stock' || $type === 'shortage') {
+        require_once __DIR__ . '/../../config/stockconfig.php';
+        $minRatio = (float)getSmartStockConfig()['min_stock_ratio'];
+        $exportSubquery = getExport30DaysSqlSubquery();
+
+        if ($type === 'stock') {
             $sql = "SELECT size, color, stock as total 
-        FROM product_variants 
-        WHERE product_id = $1 AND is_deleted = false AND status = true";
-            if ($type === 'shortage') $sql .= " AND stock < $threshold";
+                FROM product_variants 
+                WHERE product_id = $1 AND is_deleted = false AND status = true";
+        } elseif ($type === 'shortage') {
+            $sql = "SELECT pv.size, pv.color, pv.stock as total 
+                FROM product_variants pv
+                JOIN ({$exportSubquery}) exp30 ON pv.variant_id = exp30.variant_id
+                WHERE pv.product_id = $1
+                  AND exp30.total_export_30d > 0
+                  AND pv.stock <= CEIL(exp30.total_export_30d * {$minRatio})
+                  AND pv.is_deleted = false AND pv.status = true";
         } else {
             $tType = strtoupper($type);
             $sql = "SELECT pv.size, pv.color, SUM(t.quantity) as total 

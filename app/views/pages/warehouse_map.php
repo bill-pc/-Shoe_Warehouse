@@ -129,7 +129,11 @@
                                 if ($occupancy == 0) {
                                     $detailHtml .= "<p class='text-white mb-0 text-center fs-6 py-2'>Ô trống</p>";
                                 } else {
-                                    $groupedShoes = array_count_values($shoesInSlot);
+                                    $groupedShoes = [];
+                                    foreach ($shoesInSlot as $shoeItem) {
+                                        $v_id_val = is_array($shoeItem) ? (int)($shoeItem['variant_id'] ?? 0) : (int)$shoeItem;
+                                        if ($v_id_val > 0) $groupedShoes[$v_id_val] = ($groupedShoes[$v_id_val] ?? 0) + 1;
+                                    }
                                     foreach ($groupedShoes as $v_id => $qty) {
                                         $shoeData = $vDict[$v_id] ?? null;
                                         if ($shoeData) {

@@ -58,8 +58,11 @@ class ExportModel
             FROM public.shelves s,
                  jsonb_each(s.layout) AS tier,
                  jsonb_each(tier.value) AS slot,
-                 jsonb_array_elements_text(slot.value) AS item
-            WHERE item.value = $1::text
+                 jsonb_array_elements(slot.value) AS item
+            WHERE (CASE
+                    WHEN jsonb_typeof(item.value) = 'object' THEN item.value->>'variant_id'
+                    ELSE item.value #>> '{}'
+                   END) = $1::text
               AND s.is_deleted = true
               AND s.status = true
             GROUP BY s.shelf_id, s.shelf_name, s.max_capacity_per_slot, tier.key, slot.key
@@ -106,8 +109,6 @@ class ExportModel
             $items = json_decode($row['matching_items'], true);
             if (!is_array($items)) $items = [];
 
-            // Sắp từng đôi trong ô từ cũ đến mới. Item cũ không có created_at được
-            // xếp sau dữ liệu mới có timestamp để tránh giả định sai tuổi tồn.
             usort($items, function ($a, $b) {
                 $timeCompare = $this->getShelfItemTimestamp($a) <=> $this->getShelfItemTimestamp($b);
                 if ($timeCompare !== 0) return $timeCompare;
@@ -116,6 +117,7 @@ class ExportModel
                 return $ticketA <=> $ticketB;
             });
 
+            // Các phiếu xuất đang mở giữ trước những item cũ nhất trong đúng ô.
             $reservedQty = min(count($items), $reservedBySlot[$slotKey] ?? 0);
             $availableItems = array_slice($items, $reservedQty);
             $stock = count($availableItems);
@@ -127,6 +129,7 @@ class ExportModel
             $oldestTimestamp = $this->getShelfItemTimestamp($oldestItem);
             $hasCreatedAt = $oldestTimestamp !== PHP_INT_MAX;
             $oldestCreatedAt = $hasCreatedAt ? date('Y-m-d H:i:s', $oldestTimestamp) : null;
+            $oldestDateFormatted = $hasCreatedAt ? date('d/m/Y H:i', $oldestTimestamp) : null;
             $ageDays = $hasCreatedAt ? max(0, (int)floor((time() - $oldestTimestamp) / 86400)) : null;
             $ticketId = is_array($oldestItem) ? ($oldestItem['ticket_id'] ?? null) : null;
 
@@ -140,6 +143,7 @@ class ExportModel
                 'reserved_qty' => $reservedQty,
                 'max_capacity' => $maxCapacity,
                 'oldest_created_at' => $oldestCreatedAt,
+                'oldest_date_formatted' => $oldestDateFormatted,
                 'oldest_ticket_id' => $ticketId !== null ? (int)$ticketId : null,
                 'fifo_age_days' => $ageDays,
                 '_fifo_timestamp' => $oldestTimestamp,
@@ -152,22 +156,13 @@ class ExportModel
         usort($candidates, function ($a, $b) {
             $fifoCompare = $a['_fifo_timestamp'] <=> $b['_fifo_timestamp'];
             if ($fifoCompare !== 0) return $fifoCompare;
-            return strcmp($a['shelf_name'] . $a['slot_code'], $b['shelf_name'] . $b['slot_code']);
+            $shelfCompare = strcmp($a['shelf_name'], $b['shelf_name']);
+            return $shelfCompare !== 0 ? $shelfCompare : strcmp($a['slot_code'], $b['slot_code']);
         });
 
         $fifoUnits = [];
         foreach ($candidates as $rankIndex => &$candidate) {
             $candidate['fifo_rank'] = $rankIndex + 1;
-            $candidate['fifo_details'] = [
-                'rank' => $rankIndex + 1,
-                'oldest_created_at' => $candidate['oldest_created_at'],
-                'ticket_id' => $candidate['oldest_ticket_id'],
-                'age_days' => $candidate['fifo_age_days'],
-                'reason' => $candidate['oldest_created_at']
-                    ? 'Lô nhập cũ nhất còn khả dụng tại ô này được ưu tiên xuất trước'
-                    : 'Dữ liệu cũ chưa có created_at, xếp sau các lô có thời gian nhập',
-            ];
-
             foreach ($candidate['_fifo_item_timestamps'] as $unitIndex => $timestamp) {
                 $fifoUnits[] = [
                     'timestamp' => $timestamp,
@@ -175,12 +170,42 @@ class ExportModel
                     'slot_code' => $candidate['slot_code'],
                     'fifo_rank' => $candidate['fifo_rank'],
                     'oldest_created_at' => $candidate['oldest_created_at'],
+                    'oldest_date_formatted' => $candidate['oldest_date_formatted'],
                     'unit_index' => $unitIndex,
                 ];
             }
             unset($candidate['_fifo_timestamp'], $candidate['_fifo_item_timestamps']);
         }
         unset($candidate);
+
+        // Chọn từng đơn vị cũ nhất trên toàn kho rồi mới gom số lượng theo ô.
+        usort($fifoUnits, function ($a, $b) {
+            foreach (['timestamp', 'shelf_id', 'slot_code', 'unit_index'] as $field) {
+                $compare = $a[$field] <=> $b[$field];
+                if ($compare !== 0) return $compare;
+            }
+            return 0;
+        });
+
+        $remaining = $required_qty;
+        $recommendedBySlot = [];
+        foreach ($fifoUnits as $unit) {
+            if ($remaining <= 0) break;
+            $key = $unit['shelf_id'] . '|' . $unit['slot_code'];
+            if (!isset($recommendedBySlot[$key])) {
+                $recommendedBySlot[$key] = [
+                    'shelf_id' => $unit['shelf_id'],
+                    'slot_code' => $unit['slot_code'],
+                    'qty' => 0,
+                    'fifo_rank' => $unit['fifo_rank'],
+                    'oldest_created_at' => $unit['oldest_created_at'],
+                    'oldest_date_formatted' => $unit['oldest_date_formatted'],
+                ];
+            }
+            $recommendedBySlot[$key]['qty']++;
+            $remaining--;
+        }
+        $recommended = array_values($recommendedBySlot);
 
         // Chọn FIFO theo từng đôi trên toàn kho rồi mới gom lại thành số lượng theo ô.
         // Cách này tránh lấy một đôi mới hơn trong cùng ô trước đôi cũ hơn ở ô khác.
@@ -314,13 +339,6 @@ class ExportModel
 
                         $matchingKeys = [];
                         foreach ($items as $key => $val) {
-<<<<<<< Updated upstream
-                            if ($val == $variant_id && $removed_in_slot < $qty_to_remove) {
-                                unset($items[$key]);
-                                $removed_in_slot++;
-                                $total_removed++;
-                            }
-=======
                             $itemVid = is_array($val) ? ($val['variant_id'] ?? null) : $val;
                             if ($itemVid == $variant_id) $matchingKeys[] = $key;
                         }
@@ -333,7 +351,6 @@ class ExportModel
                             unset($items[$key]);
                             $removed_in_slot++;
                             $total_removed++;
->>>>>>> Stashed changes
                         }
 
                         if ($removed_in_slot > 0) {
@@ -363,22 +380,6 @@ class ExportModel
         $layouts = [];
         $fifoItems = [];
         while ($row = pg_fetch_assoc($res)) {
-<<<<<<< Updated upstream
-            if ($total_to_remove <= 0) break;
-            $layout = json_decode($row['layout'], true);
-            $changed = false;
-
-            foreach ($layout as $tier => &$slots) {
-                foreach ($slots as $slot_code => &$items) {
-                    if ($total_to_remove <= 0) break;
-                    $slotChanged = false;
-                    foreach ($items as $key => $val) {
-                        if ($val == $variant_id && $total_to_remove > 0) {
-                            unset($items[$key]);
-                            $total_to_remove--;
-                            $slotChanged = true;
-                            $changed = true;
-=======
             $shelfId = (int)$row['shelf_id'];
             $layouts[$shelfId] = json_decode($row['layout'], true) ?: [];
             foreach ($layouts[$shelfId] as $tier => $slots) {
@@ -394,7 +395,6 @@ class ExportModel
                                 'slot' => (string)$slotCode,
                                 'key' => $key,
                             ];
->>>>>>> Stashed changes
                         }
                     }
                 }
