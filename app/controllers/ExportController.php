@@ -77,9 +77,21 @@ class ExportController
     {
         if (ob_get_length()) ob_clean();
         header('Content-Type: application/json; charset=utf-8');
-        $variant_id = $_GET['variant_id'];
-        $data = $this->model->getLocationsFromJSON($variant_id);
-        echo json_encode($data);
+        $variant_id = (int)($_GET['variant_id'] ?? 0);
+        $isLegacyRequest = !array_key_exists('required_qty', $_GET) && !array_key_exists('detail_id', $_GET);
+        $required_qty = max(0, (int)($_GET['required_qty'] ?? 0));
+        $detail_id = max(0, (int)($_GET['detail_id'] ?? 0));
+
+        if ($variant_id <= 0) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'Thiếu mã biến thể']);
+            exit;
+        }
+
+        $data = $this->model->getLocationsFromJSON($variant_id, $required_qty, $detail_id);
+        // Tương thích với export.js cũ còn nằm trong cache trình duyệt: phiên bản cũ
+        // mong đợi API trả trực tiếp một mảng vị trí và gọi locs.forEach(...).
+        echo json_encode($isLegacyRequest ? $data['slots'] : $data);
         exit;
     }
 

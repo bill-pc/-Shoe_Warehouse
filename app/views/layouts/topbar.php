@@ -487,6 +487,6 @@ $__highPct = $__rawHigh > 1 ? $__rawHigh : $__rawHigh * 100;
     };
 </script>
 <script src="assets/js/import.js"></script>
-<script src="assets/js/export.js"></script>
+<script src="assets/js/export.js?v=<?= filemtime(__DIR__ . '/../../../public/assets/js/export.js') ?>"></script>
 <script src="assets/js/profile.js"></script>
 <script src="assets/js/topbar.js"></script>

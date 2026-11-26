@@ -620,8 +620,12 @@ async function loadPutawayLocations(variantId) {
         const res = await fetch(`index.php?page=tickets&action=get_putaway_locations&variant_id=${encodeURIComponent(variantId)}&ticket_id=${encodeURIComponent(currentImportTicketId)}&quantity=${quantity}`);
         const data = await res.json();
 
-        const currentSlots = Array.isArray(data.current) ? data.current : [];
-        const availableSlots = Array.isArray(data.available) ? data.available : [];
+        const orderedSlots = Array.isArray(data.slots)
+            ? data.slots
+            : [
+                ...(Array.isArray(data.current) ? data.current : []),
+                ...(Array.isArray(data.available) ? data.available : [])
+            ];
         const savedAllocations = (data.current_alloc && typeof data.current_alloc === 'object') ? data.current_alloc : {};
         const serverRecommendations = (data.recommended && typeof data.recommended === 'object') ? data.recommended : {};
 
@@ -629,6 +633,16 @@ async function loadPutawayLocations(variantId) {
         const normalizeRecommendations = (map) => {
             const normalized = {};
             if (!map || typeof map !== 'object') return normalized;
+
+            if (Array.isArray(map)) {
+                map.forEach(item => {
+                    if (!item || typeof item !== 'object') return;
+                    const key = item.key || `${item.shelf_id}_${item.tier}_${item.slot}`;
+                    const qty = parseInt(item.qty || item.allocated || item.allocated_amount || 0, 10) || 0;
+                    if (key && qty > 0) normalized[key] = qty;
+                });
+                return normalized;
+            }
 
             Object.entries(map).forEach(([key, value]) => {
                 let qty = 0;
@@ -644,67 +658,83 @@ async function loadPutawayLocations(variantId) {
 
         const recommendedAllocations = normalizeRecommendations(serverRecommendations);
 
-        // Khởi tạo số lượng cần phân bổ còn lại (Ví dụ: 3 đôi)
-        let remainingToFill = Math.max(0, quantity);
+        const hasSavedAllocations = Object.values(savedAllocations)
+            .some(value => (parseInt(value, 10) || 0) > 0);
+        const autofillAllocations = hasSavedAllocations ? savedAllocations : recommendedAllocations;
+        const firstRecommendedKey = Object.keys(recommendedAllocations)[0] || null;
 
-        const renderSlot = (slot, isCurrent, isFirst = false) => {
+        const renderSlot = (slot) => {
+            const isCurrent = Boolean(slot.is_current) || (parseInt(slot.var_count, 10) || 0) > 0;
             let mark = isCurrent ? `<span class="text-warning small">(Đang có: ${slot.var_count})</span>` : '';
             let key = `${slot.shelf_id}_${slot.tier}_${slot.slot}`;
             const slotCode = slot.location_code || slot.slot_code || `${slot.shelf_name}_${slot.tier}-${slot.slot}`;
 
-            const availSpace = Math.max(0, parseInt(slot.available, 10) || 0);
+            const availSpace = Math.max(0, parseInt(slot.available_space ?? slot.available, 10) || 0);
+            const prefillQty = Math.min(parseInt(autofillAllocations[key], 10) || 0, availSpace);
 
-            let prefillQty = 0;
-
-            // Ưu tiên 1: Lấy đúng số lượng đã lưu nháp trước đó (nếu có)
-            if (savedAllocations[key] !== undefined && savedAllocations[key] > 0) {
-                prefillQty = Math.min(savedAllocations[key], availSpace);
-                remainingToFill -= prefillQty;
-            }
-            // Ưu tiên 2: Autofill từ số lượng còn lại cho đến khi remainingToFill = 0
-            else if (remainingToFill > 0 && availSpace > 0) {
-                prefillQty = Math.min(remainingToFill, availSpace);
-                remainingToFill -= prefillQty; // GIẢM TRỪ NGAY LẬP TỨC ĐỂ CÁC Ô SAU KHÔNG BỊ FILL THÊM
-            }
-
-            let bestBadge = (isFirst && prefillQty > 0)
+            let bestBadge = (key === firstRecommendedKey && prefillQty > 0)
                 ? `<span class="badge bg-success ms-1" style="font-size: 0.65rem;">⭐ Gợi ý tốt nhất</span>`
                 : '';
 
+            const breakdown = slot.score_breakdown || {};
+            const breakdownLines = [
+                ['affinity', 'Độ gom hàng 35%'],
+                ['velocity', 'Tần suất xuất kệ 35%'],
+                ['capacity', 'Sức chứa trống 20%'],
+                ['ergonomics', 'Tầm với tầng 10%']
+            ].map(([name, label]) => {
+                const item = breakdown[name] || {};
+                return `<div class="d-flex justify-content-between gap-3 py-1 border-bottom border-secondary">
+                    <span class="text-white-50">${label}</span>
+                    <span class="text-end"><strong class="text-info">+${Number(item.weighted || 0).toFixed(2)}</strong><br><small>${escapePutawayHtml(item.reason || '')}</small></span>
+                </div>`;
+            }).join('');
+
+            const searchText = `${slotCode} ${slot.shelf_name} ${slot.tier} ${slot.slot}`.toLocaleLowerCase('vi');
+
             return `
-    <div class="d-flex justify-content-between align-items-center bg-black p-2 rounded mb-2 border border-secondary putaway-row transition-all">
-        <span class="text-white fw-bold small">
-            Ô ${slotCode}
-            <span class="text-white-50 ms-1">(Trống: ${slot.available})</span>
-            ${mark}
-            ${bestBadge}
-        </span>
-        <input type="number" 
-               class="form-control form-control-sm text-center putaway-input fw-bold bg-dark text-info border-info" 
-               style="width: 70px;" 
-               data-shelf-id="${slot.shelf_id}" 
-               data-shelf-name="${slot.shelf_name}" 
-               data-tier="${slot.tier}" 
-               data-slot="${slot.slot}" 
-               data-location-code="${slotCode}"
-               max="${Math.max(0, availSpace + prefillQty)}" 
-               min="0" 
-               value="${prefillQty}" 
-               oninput="validatePutawayTotal()">
+    <div class="bg-black p-2 rounded mb-2 border border-secondary putaway-row transition-all" data-putaway-search="${escapePutawayHtml(searchText)}">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <span class="text-white fw-bold small">
+                Ô ${escapePutawayHtml(slotCode)}
+                <span class="text-white-50 ms-1">(Trống: ${availSpace})</span>
+                ${mark}
+                ${bestBadge}
+            </span>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="badge bg-secondary border-0 putaway-score-toggle" style="cursor:pointer;" onclick="togglePutawayScoreBreakdown(this)">
+                    ${Number(slot.score || 0).toFixed(2)} điểm ▾
+                </button>
+                <input type="number"
+                       class="form-control form-control-sm text-center putaway-input fw-bold bg-dark text-info border-info"
+                       style="width: 70px;"
+                       data-shelf-id="${escapePutawayHtml(slot.shelf_id)}"
+                       data-shelf-name="${escapePutawayHtml(slot.shelf_name)}"
+                       data-tier="${escapePutawayHtml(slot.tier)}"
+                       data-slot="${escapePutawayHtml(slot.slot)}"
+                       data-location-code="${escapePutawayHtml(slotCode)}"
+                       max="${availSpace}"
+                       min="0"
+                       value="${prefillQty}"
+                       oninput="validatePutawayTotal()">
+            </div>
+        </div>
+        <div class="putaway-score-breakdown mt-2 p-2 rounded border border-secondary text-white small" hidden>
+            <div class="fw-bold text-info mb-1">Top #${slot.rank || breakdown.rank || '-'} ưu tiên</div>
+            ${breakdownLines}
+        </div>
     </div>`;
         };
 
-        const currentHtml = currentSlots.length > 0
-            ? currentSlots.map((s, idx) => renderSlot(s, true, idx === 0)).join('')
-            : '<div class="small text-white-50">Không có kệ nào đang chứa sẵn mẫu này.</div>';
-
-        const availableHtml = availableSlots.length > 0
-            ? availableSlots.map((s, idx) => renderSlot(s, false, currentSlots.length === 0 && idx === 0)).join('')
+        const slotsHtml = orderedSlots.length > 0
+            ? orderedSlots.map(renderSlot).join('')
             : '<div class="small text-danger">Kho đã đầy, không còn kệ trống!</div>';
 
         // Tính tổng số lượng đã được phân bổ vào các input
         const allocatedTotal = Object.values(recommendedAllocations).reduce((sum, v) => sum + v, 0);
-        const shortage = Math.max(0, quantity - allocatedTotal);
+        const shortage = Math.max(0, Number.isFinite(Number(data.shortage))
+            ? Number(data.shortage)
+            : quantity - allocatedTotal);
         const shortageHtml = shortage > 0
             ? `<div class="alert alert-warning py-2 mt-3 mb-0 small fw-bold"><i class="fas fa-exclamation-triangle me-1"></i>Thiếu ${shortage} vị trí lưu trữ trong kho</div>`
             : '';
@@ -712,16 +742,20 @@ async function loadPutawayLocations(variantId) {
         // Render toàn bộ giao diện Modal một lần duy nhất
         container.innerHTML = `
             <h6 class="fw-bold text-info mb-3 small"><i class="fas fa-boxes me-1"></i>CHỌN VỊ TRÍ KỆ ĐỂ CẤT HÀNG</h6>
-            <div class="row g-3">
-                <div class="col-md-6 border-end border-secondary">
-                    <label class="small text-warning fw-bold mb-2">Đang chứa sẵn mẫu này</label>
-                    <div class="d-flex flex-column" style="max-height: 200px; overflow-y: auto; padding-right: 5px;">${currentHtml}</div>
-                </div>
-                <div class="col-md-6">
-                    <label class="small text-success fw-bold mb-2">Gợi ý các ô trống khác</label>
-                    <div class="d-flex flex-column" style="max-height: 200px; overflow-y: auto; padding-right: 5px;">${availableHtml}</div>
-                </div>
+            <label class="small text-success fw-bold mb-2">Thứ tự ưu tiên theo điểm gợi ý</label>
+            <div class="position-relative mb-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9aa0a6" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+                     style="position:absolute; left:12px; top:50%; transform:translateY(-50%); pointer-events:none; z-index:2;">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <line x1="16.65" y1="16.65" x2="21" y2="21"></line>
+                </svg>
+                <input type="search" class="form-control form-control-sm bg-dark text-white border-secondary"
+                       style="padding-left:36px;"
+                       placeholder="Tìm mã ô, kệ, tầng (VD: A_2, Kệ B)..."
+                       oninput="filterPutawayRows(this.value)">
             </div>
+            <div id="putaway_slot_list" class="d-flex flex-column" style="max-height: 320px; overflow-y: auto; padding-right: 5px;">${slotsHtml}</div>
             ${shortageHtml}
             <div id="putaway_warning_msg" class="mt-3 text-center fw-bold small"></div>
         `;
@@ -733,6 +767,28 @@ async function loadPutawayLocations(variantId) {
         container.innerHTML = '<div class="text-danger small">Lỗi truy xuất sơ đồ kệ.</div>';
     }
 }
+
+function escapePutawayHtml(value) {
+    return String(value ?? '').replace(/[&<>'"]/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    })[char]);
+}
+
+function filterPutawayRows(value) {
+    const keyword = String(value || '').trim().toLocaleLowerCase('vi');
+    document.querySelectorAll('#putaway_slot_list .putaway-row').forEach(row => {
+        row.hidden = keyword !== '' && !String(row.dataset.putawaySearch || '').includes(keyword);
+    });
+}
+
+function togglePutawayScoreBreakdown(button) {
+    const row = button.closest('.putaway-row');
+    const drawer = row?.querySelector('.putaway-score-breakdown');
+    if (!drawer) return;
+    drawer.hidden = !drawer.hidden;
+    button.setAttribute('aria-expanded', String(!drawer.hidden));
+}
+
 // Kiểm tra điều kiện phân bổ số lượng lên các kệ
 function validatePutawayTotal() {
     const targetQty = parseInt(document.getElementById('import_actual_qty').value) || 0;
