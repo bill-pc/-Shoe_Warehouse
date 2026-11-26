@@ -207,6 +207,35 @@ class ExportModel
         }
         $recommended = array_values($recommendedBySlot);
 
+        // Chọn FIFO theo từng đôi trên toàn kho rồi mới gom lại thành số lượng theo ô.
+        // Cách này tránh lấy một đôi mới hơn trong cùng ô trước đôi cũ hơn ở ô khác.
+        usort($fifoUnits, function ($a, $b) {
+            foreach (['timestamp', 'shelf_id', 'slot_code', 'unit_index'] as $field) {
+                $compare = $a[$field] <=> $b[$field];
+                if ($compare !== 0) return $compare;
+            }
+            return 0;
+        });
+
+        $remaining = $required_qty;
+        $recommendedBySlot = [];
+        foreach ($fifoUnits as $unit) {
+            if ($remaining <= 0) break;
+            $key = $unit['shelf_id'] . '|' . $unit['slot_code'];
+            if (!isset($recommendedBySlot[$key])) {
+                $recommendedBySlot[$key] = [
+                    'shelf_id' => $unit['shelf_id'],
+                    'slot_code' => $unit['slot_code'],
+                    'qty' => 0,
+                    'fifo_rank' => $unit['fifo_rank'],
+                    'oldest_created_at' => $unit['oldest_created_at'],
+                ];
+            }
+            $recommendedBySlot[$key]['qty']++;
+            $remaining--;
+        }
+        $recommended = array_values($recommendedBySlot);
+
         return [
             'slots' => $candidates,
             'recommended' => $recommended,
